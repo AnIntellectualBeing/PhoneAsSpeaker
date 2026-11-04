@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SyncSpeaker</string>
+    <string name="tagline">Turn your friends\' phones into one big speaker.</string>
+
+    <string name="start_party">Start Party</string>
+    <string name="stop_party">Stop Party</string>
+    <string name="stop">Stop</string>
+    <string name="status_idle">Play music in any app (Spotify, YouTube Music…), then start the party.</string>
+    <string name="status_running">Party is live 🎉</string>
+    <string name="status_test_running">Capture test is running. Start Party will end it.</string>
+    <string name="scan_to_join">Friends: join the same Wi-Fi (or your hotspot), scan this code and tap “Join Party”. No app needed.</string>
+    <string name="other_addresses">Other addresses: %1$s</string>
+    <string name="no_network">No Wi-Fi or hotspot found. Connect to Wi-Fi or turn on your hotspot.</string>
+    <string name="capturing_ok">Capturing audio ✓</string>
+    <string name="capturing_silent">No sound captured yet. Play music in another app. If the meter stays still while music plays, that app blocks capture (try the Capture test).</string>
+
+    <plurals name="listener_count">
+        <item quantity="one">%d listener</item>
+        <item quantity="other">%d listeners</item>
+    </plurals>
+
+    <string name="settings">Settings</string>
+    <string name="play_locally">Play on this phone too (in sync with everyone)</string>
+    <string name="alarm_stream">Use the alarm volume for this phone\'s playback</string>
+    <string name="alarm_stream_hint">Turn this on if the Capture test showed that capture keeps working with media volume at 0: then set media volume to 0 (silences Spotify\'s own, early output) and control this phone\'s synced playback with the alarm volume.</string>
+    <string name="delay_label">Delay: %1$d ms (larger = more robust on busy Wi-Fi)</string>
+    <string name="keep_screen_on">Keep the screen on during the party</string>
+
+    <string name="tips_title">Avoid hearing the music twice</string>
+    <string name="tips_body">Your music app keeps playing on this phone right away, but everyone else hears it about 1 second later. Android does not let SyncSpeaker mute the original app.\n\n• Easiest: turn on “Play on this phone too” and turn down the original sound (lower the volume in the music app if it has a slider, or put this phone away from the group).\n• Best (if the Capture test shows that capture ignores the volume on your phone): set the media volume to 0, turn on “Play on this phone too” and “Use the alarm volume”, then use the alarm volume as this phone\'s volume.\n• Or just let this phone be the DJ deck and keep its volume at 0.</string>
+
+    <string name="capture_test">Capture test</string>
+    <string name="capture_test_title">Capture test</string>
+    <string name="capture_test_intro">Find out if an app\'s audio can be captured:\n\n1. Tap “Start test” and allow sharing (choose “Entire screen” if asked).\n2. Open Spotify (or any app) and play a song.\n3. Come back here. If the meter moves, SyncSpeaker can stream that app.</string>
+    <string name="start_test">Start test</string>
+    <string name="stop_test">Stop test</string>
+    <string name="test_not_running">Not running.</string>
+    <string name="test_waiting">Listening… play something in another app.</string>
+    <string name="test_sound">Sound detected ✓ This app can be streamed.</string>
+    <string name="test_silent">Silence. If music is playing right now, that app blocks audio capture (some apps opt out).</string>
+    <string name="media_volume">Media volume: %1$d / %2$d</string>
+    <string name="volume_test_hint">Volume test: while music plays, turn the media volume all the way down. If the meter keeps moving, capture ignores the volume on this phone.</string>
+    <string name="volume_independent">Result: capture keeps working at media volume 0 ✓ You can mute this phone and use “Play on this phone too” with the alarm volume.</string>
+    <string name="volume_dependent">Result: capture went silent at media volume 0. Keep the media volume up on this phone; lower the volume inside the music app instead (if it has one).</string>
+
+    <string name="need_record_permission">SyncSpeaker needs the audio permission to capture what other apps play (it never uses the microphone).</string>
+    <string name="need_projection_permission">Sharing was cancelled. Android needs this permission to capture other apps\' audio.</string>
+    <string name="notification_channel">Party</string>
+    <string name="notification_party_title">SyncSpeaker party is live</string>
+    <string name="notification_test_title">SyncSpeaker capture test</string>
+    <string name="notification_test_text">Measuring captured audio…</string>
+    <string name="footer">Open source (MIT). For private parties only. Don\'t rebroadcast copyrighted music publicly.</string>
+</resources>

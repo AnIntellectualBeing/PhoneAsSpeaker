@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="18dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="18dp"
+        android:paddingBottom="32dp">
+
+        <TextView
+            style="@style/Body"
+            android:text="@string/capture_test_title"
+            android:textSize="28sp"
+            android:textStyle="bold" />
+
+        <LinearLayout style="@style/Card">
+
+            <TextView
+                style="@style/Body"
+                android:text="@string/capture_test_intro" />
+
+            <Button
+                android:id="@+id/test_button"
+                style="@style/BigButton"
+                android:layout_marginTop="16dp"
+                android:text="@string/start_test" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Card">
+
+            <com.syncspeaker.app.LevelMeterView
+                android:id="@+id/test_meter"
+                android:layout_width="match_parent"
+                android:layout_height="32dp" />
+
+            <TextView
+                android:id="@+id/db_text"
+                style="@style/Body"
+                android:layout_marginTop="10dp"
+                android:fontFamily="monospace"
+                android:gravity="center"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:text="– dBFS" />
+
+            <TextView
+                android:id="@+id/verdict_text"
+                style="@style/Body"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:text="@string/test_not_running" />
+
+            <TextView
+                android:id="@+id/test_error"
+                style="@style/Body"
+                android:layout_marginTop="8dp"
+                android:textColor="@color/danger"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <LinearLayout style="@style/Card">
+
+            <TextView
+                android:id="@+id/volume_text"
+                style="@style/Heading" />
+
+            <TextView
+                style="@style/Muted"
+                android:text="@string/volume_test_hint" />
+
+            <TextView
+                android:id="@+id/volume_result"
+                style="@style/Body"
+                android:layout_marginTop="10dp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
