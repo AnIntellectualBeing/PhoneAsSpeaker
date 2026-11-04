@@ -104,7 +104,14 @@ async function main() {
         const first = data.onsets.length ? data.onsets[0].perf : 0;
         for (const o of data.onsets) if (o.perf - first > 2000) heard.set(heard.size, o.perf + trueOffset - data.state.nudgeMs);
       }
-      const origin = realCapture ? NaN : pcHost ? (data.onsets.length ? data.onsets[0].perf + trueOffset - data.state.delayMs : 0) : app.testStart;
+      // PC host beeps: unknown start time, so take the beat phase as the median phase of all onsets
+      // (robust against an onset detected mid-beep when a listener joins).
+      let origin = app.testStart;
+      if (realCapture) origin = NaN;
+      else if (pcHost) {
+        const phases = data.onsets.map((o) => ((o.perf + trueOffset - data.state.delayMs) % 1000 + 1000) % 1000).sort((a, b) => a - b);
+        origin = phases.length ? phases[phases.length >> 1] : 0;
+      }
       for (const o of data.onsets) {
         const hostHeard = o.perf + trueOffset;             // true host time the beep is heard
         const beepTs = hostHeard - data.state.delayMs - data.state.nudgeMs;
