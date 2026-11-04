@@ -72,13 +72,25 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Syntax check
         run: |
-          node --check server/server.js
-          node --check web/listener/syncspeaker.js
-          node --check web/pc-host/host.js
+          for f in server/*.js server/test/*.js web/listener/syncspeaker.js web/pc-host/*.js; do node --check "$f"; done
 
       - name: Protocol + sync tests (Node, no dependencies)
         run: node server/test/run-tests.js
+
+      - name: Install Playwright + Chromium (test only)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      # Timing tests on shared CI machines can hit a CPU hiccup, so each gets one retry.
+      - name: Browser sync tests (headless Chromium, 3 listeners each)
+        run: |
+          t() { node server/test/browser-test.js "$@" || { echo "::warning::retrying browser-test $*"; node server/test/browser-test.js "$@"; }; }
+          t
+          t --pc-host
+          t --pc-host --real-capture
+          t --jitter 60

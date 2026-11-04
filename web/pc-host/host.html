@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>SyncSpeaker PC Host</title>
+<style>
+  :root {
+    --bg: #f4f5fa; --card: #ffffff; --text: #14151a; --muted: #5e6270; --outline: #dde0ea;
+    --accent: #6c4dff; --ok: #1e9e5a; --warn: #c98a00; --bad: #e5484d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0e0f14; --card: #1a1c24; --text: #f2f3f7; --muted: #a0a4b3; --outline: #2c2f3a;
+      --accent: #8b73ff; --ok: #3dd68c; --warn: #f5c04a; --bad: #ff6369; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 24px 16px 40px; }
+  header { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 20px; }
+  header svg { width: 30px; height: 30px; color: var(--accent); }
+  header .tag { font-size: 12px; font-weight: 700; color: var(--accent); border: 1.5px solid var(--accent); border-radius: 999px; padding: 1px 8px; }
+  h2 { font-size: 18px; margin: 0 0 10px; }
+  .grid { display: grid; grid-template-columns: 1.1fr .9fr; gap: 16px; margin-top: 18px; }
+  @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--outline); border-radius: 20px; padding: 20px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  button { font: inherit; cursor: pointer; border: 0; }
+  .big { width: 100%; min-height: 64px; border-radius: 32px; background: var(--accent); color: #fff; font-size: 20px; font-weight: 700; margin: 6px 0 12px; }
+  .big.stop { background: var(--bad); }
+  .big:disabled { opacity: .5; cursor: default; }
+  .check { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; }
+  .check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  output { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .meter { height: 12px; border-radius: 6px; background: color-mix(in srgb, var(--muted) 20%, transparent); overflow: hidden; margin: 8px 0 4px; }
+  .meter > div { height: 100%; width: 0%; background: linear-gradient(90deg, #2ecc71 0%, #2ecc71 60%, #f1c40f 85%, #e74c3c 100%); background-size: 400px 100%; transition: width 60ms linear; }
+  .status { font-weight: 600; }
+  .status.ok { color: var(--ok); } .status.warn { color: var(--warn); } .status.bad { color: var(--bad); }
+  .qr { width: min(300px, 100%); aspect-ratio: 1; margin: 6px auto 10px; background: #fff; border-radius: 16px; padding: 6px; }
+  .qr svg { width: 100%; height: 100%; display: block; }
+  .url { font: 600 18px/1.3 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-align: center; word-break: break-all; }
+  .others { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+  .others button { background: transparent; border: 1px solid var(--outline); color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+  .others button.active { border-color: var(--accent); color: var(--accent); }
+  .count { text-align: center; font-size: 28px; font-weight: 800; margin-top: 14px; }
+  ol { padding-left: 20px; margin: 8px 0; } li { margin: 4px 0; }
+  .note { border-left: 3px solid var(--warn); padding: 6px 10px; margin-top: 12px; font-size: 14px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+    SyncSpeaker <span class="tag">PC HOST</span>
+  </header>
+
+  <div class="grid">
+    <section class="card">
+      <h2>1 · Share your computer's audio</h2>
+      <ol class="muted small">
+        <li><b>A browser tab</b> (any OS): pick the tab that plays music and keep “Also share tab audio” on.</li>
+        <li><b>Everything</b> (Windows / ChromeOS): pick “Entire screen” and turn on “Also share system audio”.</li>
+        <li>macOS can only share tab audio from the browser.</li>
+      </ol>
+      <button id="share" class="big">Share audio</button>
+      <div id="status" class="status muted">Not sharing.</div>
+      <div class="meter" aria-hidden="true"><div id="meter"></div></div>
+
+      <label class="check"><input type="checkbox" id="mute-tab" checked>
+        <span>Mute the shared tab on this computer <span class="muted small">(Chrome, tab sharing only: avoids hearing it twice)</span></span></label>
+      <label class="check"><input type="checkbox" id="play-here">
+        <span>Play on this computer too, in sync with the phones <span class="muted small">(not with “Entire screen”: it would capture itself)</span></span></label>
+
+      <div class="row" style="margin-top:12px"><label for="delay"><b>Delay</b></label><output id="delay-val">1000 ms</output></div>
+      <input id="delay" type="range" min="300" max="3000" step="50" value="1000">
+      <p class="muted small" style="margin:4px 0 0">How far behind the live audio everyone plays. Raise it if phones drop out on busy Wi-Fi.</p>
+      <div id="warn" class="note" hidden></div>
+    </section>
+
+    <section class="card">
+      <h2>2 · Friends scan this</h2>
+      <div class="qr" id="qr"></div>
+      <div class="url" id="url">…</div>
+      <div class="others" id="others"></div>
+      <p class="muted small" style="text-align:center">Phones must be on the same Wi-Fi as this computer. They open the page and tap “Join Party”. No app needed.</p>
+      <div class="count" id="count">0 listeners</div>
+    </section>
+  </div>
+
+  <p class="muted small" style="margin-top:18px">For private parties only. Don't rebroadcast copyrighted music publicly. Server connection: <span id="conn">connecting…</span></p>
+</main>
+
+<script src="/syncspeaker.js"></script>
+<script src="/host/qr.js"></script>
+<script src="/host/host.js"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "syncspeaker-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SyncSpeaker PC host server + desktop test harness (zero runtime dependencies)",
+  "license": "MIT",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "beeps": "node server.js --beeps",
+    "tone": "node server.js --tone 440",
+    "test": "node test/run-tests.js",
+    "test:browser": "node test/browser-test.js && node test/browser-test.js --pc-host && node test/browser-test.js --pc-host --real-capture && node test/browser-test.js --jitter 60"
+  }
+}

@@ -1,1 +1,448 @@
-<!doctype html><title>SyncSpeaker</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0e0f14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f4f5fa" media="(prefers-color-scheme: light)">
+<title>SyncSpeaker</title>
+<style>
+  :root {
+    --bg: #f4f5fa; --card: #ffffff; --text: #14151a; --muted: #5e6270; --outline: #dde0ea;
+    --accent: #6c4dff; --accent-2: #00b3a4; --ok: #1e9e5a; --warn: #c98a00; --bad: #e5484d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e0f14; --card: #1a1c24; --text: #f2f3f7; --muted: #a0a4b3; --outline: #2c2f3a;
+      --accent: #8b73ff; --accent-2: #2fd4c4; --ok: #3dd68c; --warn: #f5c04a; --bad: #ff6369;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 100vh; min-height: 100dvh;
+  }
+  main {
+    max-width: 480px; margin: 0 auto;
+    padding: max(20px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom));
+  }
+  header { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+  header svg { width: 28px; height: 28px; color: var(--accent); }
+  h1 { font-size: 28px; line-height: 1.15; margin: 28px 0 8px; }
+  p { margin: 0 0 12px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  button { font: inherit; cursor: pointer; border: 0; }
+  .big {
+    display: block; width: 100%; min-height: 72px; margin: 24px 0 18px;
+    border-radius: 36px; background: var(--accent); color: #fff;
+    font-size: 22px; font-weight: 700; letter-spacing: .2px;
+    box-shadow: 0 10px 30px -10px var(--accent);
+  }
+  .big:active { transform: scale(.98); }
+  .secondary {
+    width: 100%; min-height: 50px; border-radius: 25px; margin-top: 18px;
+    background: transparent; color: var(--accent); border: 2px solid var(--accent); font-weight: 700;
+  }
+  .card { background: var(--card); border: 1px solid var(--outline); border-radius: 20px; padding: 18px; margin-top: 16px; }
+  ul.tips { padding-left: 20px; margin: 0; color: var(--muted); font-size: 14px; }
+  ul.tips li { margin: 4px 0; }
+
+  .status { display: inline-flex; align-items: center; gap: 8px; margin-top: 22px;
+    padding: 8px 14px; border-radius: 999px; background: var(--card); border: 1px solid var(--outline);
+    font-weight: 600; font-size: 15px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+  .status[data-state="playing"] .dot { background: var(--ok); box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 25%, transparent); }
+  .status[data-state="syncing"] .dot, .status[data-state="waiting"] .dot { background: var(--warn); }
+  .status[data-state="connecting"] .dot, .status[data-state="reconnecting"] .dot { background: var(--warn); animation: blink 1s infinite; }
+  .status[data-state="error"] .dot { background: var(--bad); }
+  @keyframes blink { 50% { opacity: .25; } }
+
+  .viz { position: relative; height: 170px; display: grid; place-items: center; margin: 8px 0 4px; }
+  .viz .core { width: 74px; height: 74px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; color: #fff; z-index: 1; }
+  .viz .core svg { width: 38px; height: 38px; }
+  .viz .ring { position: absolute; width: 74px; height: 74px; border-radius: 50%; border: 2px solid var(--accent); opacity: 0; }
+  .playing .viz .ring { animation: ripple 2.4s ease-out infinite; }
+  .playing .viz .ring:nth-child(2) { animation-delay: .8s; }
+  .playing .viz .ring:nth-child(3) { animation-delay: 1.6s; }
+  @keyframes ripple { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(2.3); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .playing .viz .ring { animation: none; } }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat { background: var(--card); border: 1px solid var(--outline); border-radius: 16px; padding: 12px 14px; }
+  .stat b { display: block; font-size: 22px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 13px; color: var(--muted); }
+  .q-Excellent, .q-Good { color: var(--ok); }
+  .q-Fair { color: var(--warn); }
+  .q-Poor { color: var(--bad); }
+
+  label { display: block; font-weight: 600; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  output { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; }
+  input[type=range] { width: 100%; height: 36px; margin: 6px 0 2px; accent-color: var(--accent); }
+  .scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); }
+  .linkish { background: none; color: var(--accent); padding: 4px 0; font-size: 14px; font-weight: 600; }
+
+  details { margin-top: 16px; color: var(--muted); font-size: 13px; }
+  summary { cursor: pointer; padding: 6px 0; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 6px 0 0; font-variant-numeric: tabular-nums; }
+  dt { color: var(--muted); } dd { margin: 0; color: var(--text); }
+
+  .overlay { position: fixed; inset: 0; background: color-mix(in srgb, var(--bg) 85%, transparent);
+    display: grid; place-items: center; padding: 24px; z-index: 10; backdrop-filter: blur(6px); }
+  .overlay .big { max-width: 420px; }
+  .hint { margin-top: 10px; font-size: 14px; color: var(--warn); }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+    SyncSpeaker
+  </header>
+
+  <!-- Before joining -->
+  <section id="join-view">
+    <h1>You're invited to a speaker party 🎶</h1>
+    <p class="muted">Tap the button and this phone becomes one of the speakers. Every phone plays the same music in sync.</p>
+    <button id="join" class="big">Join Party</button>
+    <div class="card">
+      <ul class="tips">
+        <li>Turn your volume up.</li>
+        <li>iPhone: switch off Silent mode (side switch / Action button).</li>
+        <li>Keep this page open. Locking the screen may stop the sound.</li>
+        <li>Stay on the same Wi-Fi (or the host's hotspot).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- After joining -->
+  <section id="party-view" hidden>
+    <div class="status" id="status" data-state="connecting"><span class="dot"></span><span id="status-text">Connecting…</span></div>
+    <div id="hint" class="hint" hidden></div>
+
+    <div class="viz" aria-hidden="true">
+      <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+      <div class="core"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/></svg></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="quality">–</b><span>Sync quality</span></div>
+      <div class="stat"><b id="sync-ms">–</b><span>Estimated sync error</span></div>
+    </div>
+
+    <div class="card">
+      <div class="row"><label for="volume">Volume</label><output id="volume-val">100%</output></div>
+      <input id="volume" type="range" min="0" max="100" step="1" value="100">
+
+      <div class="row" style="margin-top:14px"><label for="nudge">Sync nudge</label><output id="nudge-val">0 ms</output></div>
+      <input id="nudge" type="range" min="-200" max="200" step="5" value="0">
+      <div class="scale"><span>◀ earlier</span><span>later ▶</span></div>
+      <p class="muted small" style="margin:8px 0 0">Hear an echo with the other phones? Slide until it sounds like one speaker. Bluetooth speakers/headphones usually need it moved left.</p>
+      <button id="nudge-reset" class="linkish">Reset nudge</button>
+    </div>
+
+    <button id="leave" class="secondary">Leave party</button>
+
+    <details>
+      <summary>Technical details</summary>
+      <dl id="details"></dl>
+    </details>
+  </section>
+
+  <div id="resume" class="overlay" hidden>
+    <button id="resume-btn" class="big">Tap to resume audio</button>
+  </div>
+</main>
+
+<script src="syncspeaker.js"></script>
+<script>
+(function () {
+  'use strict';
+  const S = window.SyncSpeaker;
+  const $ = (id) => document.getElementById(id);
+  const params = new URLSearchParams(location.search);
+  const TEST = params.has('test');
+
+  // ---------- persistent settings (localStorage may be unavailable: private mode, previews...)
+  function load(key, fallback) {
+    try { const v = localStorage.getItem('syncspeaker.' + key); return v === null ? fallback : JSON.parse(v); }
+    catch (e) { return fallback; }
+  }
+  function save(key, value) {
+    try { localStorage.setItem('syncspeaker.' + key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+  }
+
+  let ctx = null, player = null, conn = null, wakeLock = null, silentAudio = null;
+  let connStatus = 'closed', joined = false, session = null;
+  const clock = new S.ClockSync();
+  let nudge = Number(params.get('nudge') || load('nudge', 0)) || 0;
+  let volume = load('volume', 1);
+
+  $('nudge').value = nudge;
+  $('volume').value = Math.round(volume * 100);
+  renderSliders();
+
+  function renderSliders() {
+    $('nudge-val').textContent = (nudge > 0 ? '+' : '') + nudge + ' ms';
+    $('volume-val').textContent = Math.round(volume * 100) + '%';
+  }
+
+  $('nudge').addEventListener('input', (e) => {
+    nudge = Number(e.target.value);
+    save('nudge', nudge);
+    renderSliders();
+    if (player) player.setNudge(nudge);
+  });
+  $('nudge-reset').addEventListener('click', () => {
+    nudge = 0; $('nudge').value = 0; save('nudge', 0); renderSliders();
+    if (player) player.setNudge(0);
+  });
+  $('volume').addEventListener('input', (e) => {
+    volume = Number(e.target.value) / 100;
+    save('volume', volume);
+    renderSliders();
+    if (player) player.setVolume(volume);
+  });
+
+  // ---------- audio unlock helpers
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  /** A short silent WAV, looped through an <audio> element: makes iOS use the "playback"
+   *  audio session, so Web Audio is not muted by the Silent switch. */
+  function silentWavUrl() {
+    const rate = 8000, n = rate / 2;
+    const b = new ArrayBuffer(44 + n * 2), v = new DataView(b);
+    const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true);
+    v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([b], { type: 'audio/wav' }));
+  }
+
+  function unlockAudioSession() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { /* ignore */ }
+    if (isIOS() && !silentAudio) {
+      try {
+        silentAudio = new Audio(silentWavUrl());
+        silentAudio.loop = true;
+        silentAudio.setAttribute('playsinline', '');
+        const p = silentAudio.play();
+        if (p && p.catch) p.catch(() => {});
+      } catch (e) { /* ignore */ }
+    }
+  }
+
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator && document.visibilityState === 'visible') {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch (e) { /* not available over plain http on most browsers: fail silently */ }
+  }
+
+  // ---------- join / leave
+  $('join').addEventListener('click', join);
+  $('leave').addEventListener('click', leave);
+  $('resume-btn').addEventListener('click', resumeAudio);
+
+  function join() {
+    if (joined) return;
+    joined = true;
+    unlockAudioSession();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    try {
+      ctx = new AC({ latencyHint: 'interactive' });
+    } catch (e) {
+      ctx = new AC();
+    }
+    // Play one silent sample inside the click: required to unlock audio on iOS Safari.
+    const b = ctx.createBuffer(1, 1, 22050);
+    const s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0);
+    if (ctx.resume) ctx.resume();
+    ctx.onstatechange = updateResumeOverlay;
+
+    player = new S.SyncPlayer(ctx, clock, { delayMs: 1000, nudgeMs: nudge });
+    player.setVolume(volume);
+    if (TEST) installTestHooks();
+
+    const wsUrl = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+    conn = new S.Connection(wsUrl, clock, {
+      onStatus: (st) => {
+        connStatus = st;
+        if (st === 'open' && player) player.reset();
+      },
+      onHello: (msg) => {
+        if (session && msg.session !== session) player.reset();
+        session = msg.session;
+        player.setFormat({ codec: msg.codec, sampleRate: msg.sampleRate, channels: msg.channels });
+        player.setDelay(msg.delayMs);
+      },
+      onAudio: (buf) => player.push(buf),
+    });
+    conn.connect();
+
+    $('join-view').hidden = true;
+    $('party-view').hidden = false;
+    requestWakeLock();
+    uiTimer = setInterval(renderStatus, 250);
+    renderStatus();
+  }
+
+  function leave() {
+    joined = false;
+    clearInterval(uiTimer);
+    if (conn) conn.close();
+    if (player) player.destroy();
+    if (ctx) ctx.close().catch(() => {});
+    if (silentAudio) { silentAudio.pause(); silentAudio = null; }
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    ctx = player = conn = null;
+    $('party-view').hidden = true;
+    $('join-view').hidden = false;
+    $('resume').hidden = true;
+    document.body.classList.remove('playing');
+  }
+
+  function resumeAudio() {
+    unlockAudioSession();
+    if (ctx) ctx.resume().catch(() => {});
+    if (player) player.reset();
+    updateResumeOverlay();
+  }
+
+  function updateResumeOverlay() {
+    $('resume').hidden = !(joined && ctx && ctx.state !== 'running' && ctx.state !== 'closed');
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (!joined) return;
+    if (document.visibilityState === 'visible') {
+      requestWakeLock();
+      if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+      if (conn && connStatus !== 'open') conn.connect();
+      setTimeout(updateResumeOverlay, 300);
+    }
+  });
+
+  // ---------- status UI
+  let uiTimer = null;
+
+  function renderStatus() {
+    if (!player) return;
+    const now = performance.now();
+    let state, text, hint = '';
+    if (connStatus === 'connecting') { state = 'connecting'; text = 'Connecting…'; }
+    else if (connStatus === 'reconnecting') { state = 'reconnecting'; text = 'Reconnecting…'; hint = 'Lost the host. Check that you are on the same Wi-Fi.'; }
+    else if (connStatus !== 'open') { state = 'error'; text = 'Disconnected'; }
+    else if (!clock.ready) { state = 'syncing'; text = 'Syncing clocks…'; }
+    else if (player.playing) { state = 'playing'; text = 'Playing'; }
+    else if (now - player.lastChunkAt > 1500) { state = 'waiting'; text = 'Connected · waiting for audio'; hint = 'The host has not started sharing audio yet.'; }
+    else { state = 'syncing'; text = 'Syncing…'; if (player.scheduler.stats.dropped > 50) hint = 'Audio arrives too late. Move closer to the Wi-Fi router or ask the host to raise the delay.'; }
+
+    const st = $('status');
+    st.dataset.state = state;
+    $('status-text').textContent = text;
+    $('hint').hidden = !hint;
+    $('hint').textContent = hint;
+    document.body.classList.toggle('playing', state === 'playing');
+
+    if (state === 'playing') {
+      const err = player.syncErrorMs();
+      const q = S.qualityLabel(err);
+      $('quality').textContent = q;
+      $('quality').className = 'q-' + q;
+      $('sync-ms').textContent = '±' + Math.max(1, Math.round(err)) + ' ms';
+    } else {
+      $('quality').textContent = '–'; $('quality').className = '';
+      $('sync-ms').textContent = '–';
+    }
+
+    const s = player.scheduler.stats;
+    const rows = [
+      ['Connection', connStatus],
+      ['Clock offset', Number.isFinite(clock.offset) ? clock.offset.toFixed(1) + ' ms' : '–'],
+      ['Round trip (best)', Number.isFinite(clock.minRtt) ? clock.minRtt.toFixed(1) + ' ms' : '–'],
+      ['Clock samples', clock.samples.length],
+      ['Delay (host)', player.delayMs + ' ms'],
+      ['Playback error', s.avgAbsErrMs.toFixed(1) + ' ms'],
+      ['Chunks played / dropped', s.played + ' / ' + s.dropped],
+      ['Hard re-syncs', s.resyncs],
+      ['Audio clock', player.audioClock.source],
+      ['Output latency', ((ctx.outputLatency || 0) * 1000).toFixed(0) + ' + ' + ((ctx.baseLatency || 0) * 1000).toFixed(0) + ' ms'],
+      ['Sample rate', player.format.sampleRate + ' → ' + ctx.sampleRate + ' Hz'],
+      ['AudioContext', ctx.state],
+    ];
+    const dl = $('details');
+    dl.textContent = '';
+    for (const [k, v] of rows) {
+      const dt = document.createElement('dt'); dt.textContent = k;
+      const dd = document.createElement('dd'); dd.textContent = v;
+      dl.append(dt, dd);
+    }
+    updateResumeOverlay();
+  }
+
+  // ---------- automated test hooks (?test): used by server/test/browser-test.js
+  function installTestHooks() {
+    const t = window.__ssTest = { scheduled: [], onsets: [], ready: false };
+    player.onChunkScheduled = (info) => {
+      t.scheduled.push({ ts: info.timestampMs, when: info.when, rate: info.rate, errS: info.errS,
+        perf: player.audioClock.perfForCtxTime(info.when), now: performance.now(), clockOffset: clock.offset,
+        acOffset: player.audioClock.offsetMs, acSource: player.audioClock.source, ctxNow: ctx.currentTime });
+      if (t.scheduled.length > 2000) t.scheduled.shift();
+    };
+    t.state = () => ({
+      offset: clock.offset, minRtt: clock.minRtt, samples: clock.samples.length,
+      timeOrigin: performance.timeOrigin, delayMs: player.delayMs, nudgeMs: player.nudgeMs,
+      stats: Object.assign({}, player.scheduler.stats), ctxState: ctx.state,
+      audioClockOffset: player.audioClock.offsetMs, audioClockSource: player.audioClock.source,
+      sampleRate: ctx.sampleRate,
+    });
+    // An AudioWorklet tap (allowed here because tests run on localhost, a secure context)
+    // records the exact AudioContext time at which each beep onset is actually rendered.
+    if (!ctx.audioWorklet) return;
+    const code = `
+      class Tap extends AudioWorkletProcessor {
+        constructor() { super(); this.quietFrames = 1e9; }
+        process(inputs) {
+          const ch = inputs[0] && inputs[0][0];
+          if (ch) {
+            for (let i = 0; i < ch.length; i++) {
+              const loud = Math.abs(ch[i]) > 0.05;
+              if (loud && this.quietFrames > sampleRate * 0.3) {
+                this.port.postMessage({ t: currentTime + i / sampleRate, frame: currentFrame + i });
+              }
+              this.quietFrames = loud ? 0 : this.quietFrames + 1;
+            }
+          }
+          return true;
+        }
+      }
+      registerProcessor('tap', Tap);`;
+    const url = URL.createObjectURL(new Blob([code], { type: 'application/javascript' }));
+    ctx.audioWorklet.addModule(url).then(() => {
+      const node = new AudioWorkletNode(ctx, 'tap', { numberOfOutputs: 0 });
+      player.output.connect(node);
+      node.port.onmessage = (e) => {
+        t.onsets.push({ t: e.data.t, perf: player.audioClock.perfForCtxTime(e.data.t), hostEst: clock.localToHost(player.audioClock.perfForCtxTime(e.data.t)) });
+        if (t.onsets.length > 500) t.onsets.shift();
+      };
+      t.ready = true;
+    }).catch((e) => { t.error = String(e); });
+  }
+
+  if (params.has('autojoin')) join();
+})();
+</script>
+</body>
+</html>
