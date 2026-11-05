@@ -11,16 +11,19 @@ import kotlin.math.roundToInt
  *
  *  - error way too negative (early): write silence first.
  *  - error way too positive (late): skip the start of the chunk (or drop it entirely).
- *  - small error: drop or repeat a single frame per chunk (~0.1 % speed change, inaudible).
+ *  - small error: drop or repeat 1-4 frames per 20 ms chunk, spread evenly (at most ~0.4 %
+ *    speed change, inaudible), which corrects up to ~4 ms per second.
  *
  * Pure Kotlin, unit-tested in PlaybackAlignerTest.
  */
 class PlaybackAligner(
     private val sampleRate: Int,
     private val channels: Int,
-    private val hardThresholdMs: Double = 40.0,
+    private val hardThresholdMs: Double = 25.0,
     private val deadbandMs: Double = 2.0,
+    private val maxSlipFrames: Int = 4,
 ) {
+    /** slip > 0: drop that many frames (catch up); slip < 0: repeat that many frames (wait). */
     data class Plan(val silenceFrames: Int, val skipFrames: Int, val slip: Int)
 
     fun plan(errorMs: Double, chunkFrames: Int): Plan {
@@ -28,11 +31,14 @@ class PlaybackAligner(
         return when {
             errorMs < -hardThresholdMs -> Plan(silenceFrames = -errFrames, skipFrames = 0, slip = 0)
             errorMs > hardThresholdMs -> Plan(silenceFrames = 0, skipFrames = minOf(errFrames, chunkFrames), slip = 0)
-            errorMs > deadbandMs -> Plan(0, 0, slip = +1)
-            errorMs < -deadbandMs -> Plan(0, 0, slip = -1)
+            errorMs > deadbandMs -> Plan(0, 0, slip = slipFrames(errorMs))
+            errorMs < -deadbandMs -> Plan(0, 0, slip = -slipFrames(-errorMs))
             else -> Plan(0, 0, 0)
         }
     }
+
+    /** ~1 frame per 5 ms of error, 1..maxSlipFrames. */
+    private fun slipFrames(absErrorMs: Double): Int = (absErrorMs / 5.0).roundToInt().coerceIn(1, maxSlipFrames)
 
     /**
      * Applies [plan] to [chunk] (interleaved samples) and returns the samples to write after any
@@ -41,15 +47,25 @@ class PlaybackAligner(
     fun apply(plan: Plan, chunk: ShortArray): ShortArray {
         val frames = chunk.size / channels
         val start = plan.skipFrames.coerceIn(0, frames)
-        var body = chunk.copyOfRange(start * channels, chunk.size)
+        val body = chunk.copyOfRange(start * channels, chunk.size)
         val bodyFrames = body.size / channels
-        if (plan.slip > 0 && bodyFrames > 1) {
-            body = body.copyOfRange(0, body.size - channels)
-        } else if (plan.slip < 0 && bodyFrames > 0) {
-            body = body.copyOf(body.size + channels).also { out ->
-                for (c in 0 until channels) out[body.size + c] = body[body.size - channels + c]
+        val n = minOf(kotlin.math.abs(plan.slip), bodyFrames / 2)
+        if (n == 0) return body
+        // Positions (frame indices) spread evenly over the chunk.
+        val marks = BooleanArray(bodyFrames)
+        for (k in 0 until n) marks[((k + 0.5) * bodyFrames / n).toInt().coerceAtMost(bodyFrames - 1)] = true
+        val outFrames = if (plan.slip > 0) bodyFrames - n else bodyFrames + n
+        val out = ShortArray(outFrames * channels)
+        var o = 0
+        for (f in 0 until bodyFrames) {
+            if (plan.slip > 0 && marks[f]) continue // drop this frame
+            System.arraycopy(body, f * channels, out, o, channels)
+            o += channels
+            if (plan.slip < 0 && marks[f]) { // repeat this frame
+                System.arraycopy(body, f * channels, out, o, channels)
+                o += channels
             }
         }
-        return body
+        return out
     }
 }

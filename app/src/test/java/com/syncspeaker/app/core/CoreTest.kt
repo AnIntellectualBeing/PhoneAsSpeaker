@@ -48,15 +48,25 @@ class CoreTest {
         assertEquals(PlaybackAligner.Plan(4800, 0, 0), a.plan(-100.0, 960))
         assertEquals(PlaybackAligner.Plan(0, 960, 0), a.plan(500.0, 960))
         assertEquals(PlaybackAligner.Plan(0, 960, 0), a.plan(50.0, 960)) // 2400 frames late, capped to the chunk
-        assertEquals(PlaybackAligner.Plan(0, 0, 1), a.plan(30.0, 960))
-        assertEquals(PlaybackAligner.Plan(0, 0, 1), a.plan(5.0, 960))
-        assertEquals(PlaybackAligner.Plan(0, 0, -1), a.plan(-5.0, 960))
+        assertEquals(PlaybackAligner.Plan(0, 960, 0), a.plan(30.0, 960)) // > 25 ms late: skip (capped to the chunk)
+        assertEquals(PlaybackAligner.Plan(0, 0, 4), a.plan(20.0, 960))
+        assertEquals(PlaybackAligner.Plan(0, 0, 1), a.plan(3.0, 960))
+        assertEquals(PlaybackAligner.Plan(0, 0, -2), a.plan(-10.0, 960))
         assertEquals(PlaybackAligner.Plan(0, 0, 0), a.plan(1.0, 960))
 
-        val chunk = ShortArray(8) { it.toShort() } // 4 stereo frames
-        assertEquals(listOf<Short>(0, 1, 2, 3, 4, 5), a.apply(PlaybackAligner.Plan(0, 0, 1), chunk).toList())
-        assertEquals(listOf<Short>(0, 1, 2, 3, 4, 5, 6, 7, 6, 7), a.apply(PlaybackAligner.Plan(0, 0, -1), chunk).toList())
+        val chunk = ShortArray(8) { it.toShort() } // 4 stereo frames: (0,1) (2,3) (4,5) (6,7)
+        assertEquals(listOf<Short>(0, 1, 2, 3, 6, 7), a.apply(PlaybackAligner.Plan(0, 0, 1), chunk).toList())
+        assertEquals(listOf<Short>(0, 1, 2, 3, 4, 5, 4, 5, 6, 7), a.apply(PlaybackAligner.Plan(0, 0, -1), chunk).toList())
         assertEquals(listOf<Short>(4, 5, 6, 7), a.apply(PlaybackAligner.Plan(0, 2, 0), chunk).toList())
+
+        // Real-size chunk: 4 frames dropped / repeated, spread out, frame order preserved.
+        val big = ShortArray(960 * 2) { (it / 2).toShort() }
+        val dropped = a.apply(PlaybackAligner.Plan(0, 0, 4), big)
+        assertEquals((960 - 4) * 2, dropped.size)
+        val repeated = a.apply(PlaybackAligner.Plan(0, 0, -4), big)
+        assertEquals((960 + 4) * 2, repeated.size)
+        for (i in 2 until dropped.size step 2) assertTrue(dropped[i] > dropped[i - 2])
+        for (i in 2 until repeated.size step 2) assertTrue(repeated[i] >= repeated[i - 2])
     }
 
     @Test

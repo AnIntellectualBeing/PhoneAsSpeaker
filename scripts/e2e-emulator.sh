@@ -166,14 +166,18 @@ curl -sf http://127.0.0.1:8080/status.json && echo
 # ------------------------------------------------------------------ "Play on this phone too"
 log "enabling 'Play on this phone too'"
 adb shell am start -n $APP/.MainActivity --ez play_locally true >/dev/null
-sleep 6
+sleep 16
 shot 04-play-locally
 screen "play on this phone too"
 if grep -a -q "Local playback started" "$OUT/logcat.txt"; then
   grep -a "LocalPlayer" "$OUT/logcat.txt" | tail -3
   # The host phone's own playback must stay aligned with the listeners (|error| small).
   LASTERR=$(grep -a -o "local playback error -\?[0-9.]* ms" "$OUT/logcat.txt" | tail -1 | awk '{print $4}')
-  log "host phone playback error: ${LASTERR:-?} ms"
+  log "host phone playback error after ~15 s: ${LASTERR:-?} ms"
+  if [ -z "$LASTERR" ] || ! awk -v e="$LASTERR" 'BEGIN { exit !(e < 10 && e > -10) }'; then
+    log "host phone playback is NOT aligned with the listeners"
+    FAIL=1
+  fi
 else
   log "local playback did NOT start"
   FAIL=1

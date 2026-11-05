@@ -162,7 +162,9 @@ async function main() {
       } else if (!s || s.n < seconds - 5) { failures++; console.log('  FAIL: too few beeps heard'); }
       // One outlier beep is tolerated: a CPU stall of the (shared, headless) audio output delays
       // audio that is already queued, on every page at once. Persistent errors still fail.
-      else if ((!gridMode && Math.abs(stats(dropWorst(errs)).mean) > 5) || rangeOf(dropWorst(errs)) > 10) { failures++; console.log('  FAIL: playback error too large: ' + errs.map((e) => e.toFixed(1)).join(' ')); }
+      // In grid mode the "regularity" also includes the HOST's capture clock (a stall there shifts
+      // the content for everybody), so it only guards against gross errors; sync = spread below.
+      else if ((!gridMode && Math.abs(stats(dropWorst(errs)).mean) > 5) || rangeOf(dropWorst(errs)) > (gridMode ? 25 : 10)) { failures++; console.log('  FAIL: playback error too large: ' + errs.map((e) => e.toFixed(1)).join(' ')); }
     }
 
     if (externalUrl) {
