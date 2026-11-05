@@ -48,11 +48,26 @@ object Protocol {
 
     data class Ping(val id: Long, val t0: Double)
 
+    /** Listener status, sent every few seconds: {"type":"report","name":"iPhone","state":"playing","syncMs":3.2} */
+    data class Report(val name: String, val state: String, val syncMs: Double)
+
     private val typeRe = Regex("\"type\"\\s*:\\s*\"([a-z]+)\"")
     private val idRe = Regex("\"id\"\\s*:\\s*(-?\\d+)")
     private val t0Re = Regex("\"t0\"\\s*:\\s*(-?[0-9.eE+-]+)")
 
+    private val nameRe = Regex("\"name\"\\s*:\\s*\"([^\"\\\\]{0,40})\"")
+    private val stateRe = Regex("\"state\"\\s*:\\s*\"([a-z]{1,16})\"")
+    private val syncRe = Regex("\"syncMs\"\\s*:\\s*(-?[0-9.eE+-]+)")
+
     fun messageType(json: String): String? = typeRe.find(json)?.groupValues?.get(1)
+
+    fun parseReport(json: String): Report? {
+        if (messageType(json) != "report") return null
+        val name = nameRe.find(json)?.groupValues?.get(1)?.trim()?.take(24)?.ifEmpty { null } ?: "Phone"
+        val state = stateRe.find(json)?.groupValues?.get(1) ?: "unknown"
+        val sync = syncRe.find(json)?.groupValues?.get(1)?.toDoubleOrNull() ?: Double.NaN
+        return Report(name, state, sync)
+    }
 
     /** Minimal parser for {"type":"ping","id":1,"t0":123.4}. Returns null for anything else. */
     fun parsePing(json: String): Ping? {

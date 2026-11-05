@@ -93,10 +93,24 @@ class StreamServerTest {
         assertEquals(98765.4321, Protocol.readTimestamp(packet), 1e-9)
         assertEquals(pcm.toList(), packet.copyOfRange(8, packet.size).toList())
 
+        ws.send("{\"type\":\"report\",\"name\":\"Test phone\",\"state\":\"playing\",\"syncMs\":4.5}")
+        val deadline3 = System.currentTimeMillis() + 5000
+        while (server.listenerInfo().firstOrNull()?.name != "Test phone" && System.currentTimeMillis() < deadline3) Thread.sleep(10)
+        assertEquals(StreamServer.ListenerInfo("Test phone", "playing", 4.5, "127.0.0.1"), server.listenerInfo().first())
+
         ws.close(1000, "bye")
         val deadline2 = System.currentTimeMillis() + 5000
         while (server.listenerCount != 0 && System.currentTimeMillis() < deadline2) Thread.sleep(10)
         assertEquals(0, server.listenerCount)
+    }
+
+    @Test
+    fun parsesReport() {
+        val r = Protocol.parseReport("{\"type\":\"report\",\"name\":\"iPhone\",\"state\":\"playing\",\"syncMs\":3.25}")
+        assertEquals(Protocol.Report("iPhone", "playing", 3.25), r)
+        val bad = Protocol.parseReport("{\"type\":\"report\",\"name\":\"\\\"evil\",\"syncMs\":\"x\"}")
+        assertEquals("Phone", bad!!.name)
+        assertTrue(bad.syncMs.isNaN())
     }
 
     @Test

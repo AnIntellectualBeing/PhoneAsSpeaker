@@ -39,6 +39,7 @@
         conn.send({ type: 'config', delayMs });
       } else if (msg.type === 'listeners') {
         $('count').textContent = msg.count + (msg.count === 1 ? ' listener' : ' listeners');
+        renderPeople(msg.list || []);
       } else if (msg.type === 'error') {
         showWarn(msg.message);
       }
@@ -96,6 +97,24 @@
     save('playHere', e.target.checked);
     updateLocalPlayer();
   });
+
+  function describe(l) {
+    if (l.state === 'playing' && Number.isFinite(l.syncMs)) {
+      const ms = Math.max(1, Math.round(l.syncMs));
+      return `±${ms} ms ${l.syncMs <= 10 ? '✓' : l.syncMs <= 25 ? '· good' : l.syncMs <= 50 ? '· fair' : '· poor'}`;
+    }
+    return { syncing: 'syncing…', connecting: 'syncing…', waiting: 'waiting for audio', suspended: 'paused (tap needed on that phone)' }[l.state] || l.state;
+  }
+
+  function renderPeople(list) {
+    const ul = $('people');
+    ul.textContent = '';
+    for (const l of list) {
+      const li = document.createElement('li');
+      li.textContent = `${l.name} · ${describe(l)}`;
+      ul.append(li);
+    }
+  }
 
   function showWarn(text) {
     $('warn').hidden = !text;

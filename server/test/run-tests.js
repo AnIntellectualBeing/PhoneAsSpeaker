@@ -282,6 +282,11 @@ test('Server PC-host relay: format -> hello, audio relayed byte for byte, listen
     assert.equal(got.timestampMs, 5555.5);
     assert.deepEqual(Array.from(got.pcm), [1, 2, 3, 4, 5, 6]);
 
+    // Listener status reports reach the host page.
+    listener.send(JSON.stringify({ type: 'report', name: 'Test phone', state: 'playing', syncMs: 2.5 }));
+    const people = await host.next((m) => isText('listeners')(m) && m.list && m.list[0] && m.list[0].name === 'Test phone', 4000);
+    assert.deepEqual(people.list[0], { name: 'Test phone', state: 'playing', syncMs: 2.5 });
+
     // Listeners cannot inject audio.
     listener.send(S.encodePacket(1, new Int16Array([9, 9])));
     await assert.rejects(host.next(isBinary, 300));

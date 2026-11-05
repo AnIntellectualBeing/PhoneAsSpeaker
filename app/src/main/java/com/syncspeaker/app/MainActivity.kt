@@ -60,6 +60,13 @@ class MainActivity : ProjectionActivity() {
                 beginCapture(PartyState.Mode.PARTY)
             }
         }
+        findViewById<Button>(R.id.share_button).setOnClickListener {
+            val url = PartyState.snapshot.urls.firstOrNull() ?: return@setOnClickListener
+            val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                .putExtra(Intent.EXTRA_TEXT, getString(R.string.share_text, url))
+            startActivity(Intent.createChooser(send, getString(R.string.share_link)))
+        }
+        findViewById<Button>(R.id.hotspot_button).setOnClickListener { openHotspotSettings() }
         findViewById<Button>(R.id.capture_test_button).setOnClickListener {
             startActivity(Intent(this, CaptureTestActivity::class.java))
         }
@@ -98,6 +105,38 @@ class MainActivity : ProjectionActivity() {
             render(PartyState.snapshot)
         }
         if (savedInstanceState == null) handleAutostart(intent, PartyState.Mode.PARTY)
+    }
+
+    private fun describeListener(l: com.syncspeaker.app.server.StreamServer.ListenerInfo): String {
+        val status = when (l.state) {
+            "playing" -> if (l.syncMs.isNaN()) "playing" else "±${Math.round(maxOf(1.0, l.syncMs))} ms " + when {
+                l.syncMs <= 10 -> "✓"
+                l.syncMs <= 25 -> "· good"
+                l.syncMs <= 50 -> "· fair"
+                else -> "· poor"
+            }
+            "syncing", "connecting" -> "syncing…"
+            "waiting" -> "waiting for audio"
+            "suspended" -> "paused (tap needed on that phone)"
+            else -> l.state
+        }
+        return "${l.name} · $status"
+    }
+
+    private fun openHotspotSettings() {
+        // There is no public intent for the hotspot screen; try the common one, then fall back.
+        val candidates = listOf(
+            Intent().setClassName("com.android.settings", "com.android.settings.Settings\$TetherSettingsActivity"),
+            Intent("android.settings.TETHER_SETTINGS"),
+            Intent(android.provider.Settings.ACTION_WIRELESS_SETTINGS),
+        )
+        for (i in candidates) {
+            try {
+                startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (_: Exception) {
+            }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -146,10 +185,14 @@ class MainActivity : ProjectionActivity() {
                     qrUrl = url
                 }
             }
+            findViewById<View>(R.id.share_button).visibility = if (url == null) View.GONE else View.VISIBLE
             val others = s.urls.drop(1)
             otherUrls.visibility = if (others.isEmpty()) View.GONE else View.VISIBLE
             otherUrls.text = getString(R.string.other_addresses, others.joinToString("  "))
             listenersText.text = resources.getQuantityString(R.plurals.listener_count, s.listeners, s.listeners)
+            val detail = findViewById<TextView>(R.id.listeners_detail)
+            detail.visibility = if (s.listenerInfo.isEmpty()) View.GONE else View.VISIBLE
+            detail.text = s.listenerInfo.joinToString("\n") { describeListener(it) }
             levelMeter.setLevel(s.level.meter)
             val now = Protocol.hostNowMs()
             levelHint.setText(

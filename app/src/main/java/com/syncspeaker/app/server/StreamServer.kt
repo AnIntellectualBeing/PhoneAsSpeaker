@@ -59,6 +59,11 @@ class StreamServer(
 
     val listenerCount: Int get() = clients.size
 
+    /** What each listener last reported about itself (name, state, estimated sync error). */
+    data class ListenerInfo(val name: String, val state: String, val syncMs: Double, val address: String)
+
+    fun listenerInfo(): List<ListenerInfo> = clients.map { it.info() }
+
     /** Starts listening. Clients ping every ~2.5 s, so a 30 s read timeout only kills dead sockets. */
     fun startServer() {
         start(SOCKET_TIMEOUT_MS, true)
@@ -128,6 +133,12 @@ class StreamServer(
         @Volatile private var running = false
         private var sender: Thread? = null
         private val remote = handshake.remoteIpAddress ?: "?"
+        @Volatile private var report: Protocol.Report? = null
+
+        fun info(): ListenerInfo {
+            val r = report
+            return ListenerInfo(r?.name ?: "Phone", r?.state ?: "connecting", r?.syncMs ?: Double.NaN, remote)
+        }
 
         fun enqueue(packet: ByteArray) {
             if (!running) return
@@ -193,6 +204,10 @@ class StreamServer(
             val t1 = clock()
             if (message.opCode != WebSocketFrame.OpCode.Text) return
             val text = message.textPayload ?: return
+            if (Protocol.messageType(text) == "report") {
+                Protocol.parseReport(text)?.let { report = it }
+                return
+            }
             val ping = Protocol.parsePing(text) ?: return
             try {
                 // WebSocket.sendFrame is synchronized on this object; taking the same lock here

@@ -10,6 +10,9 @@
     <string name="status_running">Party is live 🎉</string>
     <string name="status_test_running">Capture test is running. Start Party will end it.</string>
     <string name="scan_to_join">Friends: join the same Wi-Fi (or your hotspot), scan this code and tap “Join Party”. No app needed.</string>
+    <string name="share_link">Share link</string>
+    <string name="hotspot_settings">Hotspot settings</string>
+    <string name="share_text">Join my SyncSpeaker party 🎶 Connect to the same Wi-Fi, open %1$s and tap Join Party.</string>
     <string name="other_addresses">Other addresses: %1$s</string>
     <string name="no_network">No Wi-Fi or hotspot found. Connect to Wi-Fi or turn on your hotspot.</string>
     <string name="capturing_ok">Capturing audio ✓</string>

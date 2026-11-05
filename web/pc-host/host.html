@@ -45,6 +45,8 @@
   .others { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
   .others button { background: transparent; border: 1px solid var(--outline); color: var(--muted); border-radius: 999px; padding: 4px 10px; font-size: 13px; }
   .others button.active { border-color: var(--accent); color: var(--accent); }
+  .people { list-style: none; padding: 0; margin: 8px 0 0; text-align: center; color: var(--muted); font-size: 14px; }
+  .people li { margin: 3px 0; }
   .count { text-align: center; font-size: 28px; font-weight: 800; margin-top: 14px; }
   ol { padding-left: 20px; margin: 8px 0; } li { margin: 4px 0; }
   .note { border-left: 3px solid var(--warn); padding: 6px 10px; margin-top: 12px; font-size: 14px; }
@@ -88,6 +90,7 @@
       <div class="others" id="others"></div>
       <p class="muted small" style="text-align:center">Phones must be on the same Wi-Fi as this computer. They open the page and tap “Join Party”. No app needed.</p>
       <div class="count" id="count">0 listeners</div>
+      <ul class="people" id="people"></ul>
     </section>
   </div>
 

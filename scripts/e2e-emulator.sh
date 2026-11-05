@@ -16,6 +16,29 @@ mkdir -p "$OUT"
 FAIL=0
 
 log() { echo "=== $*"; }
+
+# Prints what is on screen (all visible texts) and which activity is in front.
+screen() {
+  adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1
+  adb shell cat /sdcard/ui.xml > "$OUT/screen.xml" 2>/dev/null
+  echo "--- screen ($1): $(adb shell dumpsys activity activities 2>/dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity' | sed 's/^ *//')"
+  python3 - "$OUT/screen.xml" <<'PY'
+import sys, xml.etree.ElementTree as ET
+try:
+    root = ET.parse(sys.argv[1]).getroot()
+except Exception as e:
+    print('    (no UI dump)'); sys.exit(0)
+texts = [n.get('text').strip() for n in root.iter('node') if (n.get('text') or '').strip()]
+print('    ' + ' | '.join(t.replace('\n', ' ')[:70] for t in texts[:40]))
+PY
+}
+
+# Our app's log lines so far (and system lines about media projection / our package).
+applog() {
+  echo "--- app log ($1):"
+  grep -E "SyncSpeaker|PartyService|CaptureEngine|StreamServer|LocalPlayer|MediaProjection|syncspeaker|FATAL|AndroidRuntime: " "$OUT/logcat.txt" \
+    | grep -v -E "uiautomator|RuntimeInit|boot image|lock profiling|Shutting down VM|Calling main" | tail -${2:-25} | sed 's/^/    /'
+}
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb shell cat /sdcard/ui.xml > "$OUT/$1.xml" 2>/dev/null || true; }
 
 # Taps the first on-screen element whose text matches the (case-insensitive) regex, if any.
@@ -81,8 +104,12 @@ sleep 2
 # ------------------------------------------------------------------ Capture test
 log "capture test"
 adb shell am start -W -n $APP/.CaptureTestActivity --ez autostart true >/dev/null
+sleep 2
+screen "after starting the capture test"
 accept_consent
 sleep 6
+screen "capture test running"
+applog "capture test"
 shot 01-capture-test
 if grep -q "capture: " "$OUT/logcat.txt"; then
   grep "capture: " "$OUT/logcat.txt" | tail -3
@@ -99,7 +126,12 @@ fi
 # ------------------------------------------------------------------ Party
 log "starting the party"
 adb shell am start -W -n $APP/.MainActivity --ez autostart true >/dev/null
+sleep 2
+screen "after Start Party"
 accept_consent
+sleep 2
+screen "party"
+applog "party"
 adb forward tcp:8080 tcp:8080
 for i in $(seq 1 30); do
   if curl -sf http://127.0.0.1:8080/status.json > "$OUT/status.json"; then break; fi
@@ -120,6 +152,7 @@ node server/test/browser-test.js --url http://127.0.0.1:8080 --seconds 15 --list
 adb shell am start -n $APP/.MainActivity >/dev/null
 sleep 2
 shot 03-party-after-listeners
+screen "host app with listeners connected"
 curl -sf http://127.0.0.1:8080/status.json && echo
 
 # ------------------------------------------------------------------ "Play on this phone too"
@@ -127,6 +160,7 @@ log "enabling 'Play on this phone too'"
 tap_text 'Play on this phone too.*' || true
 sleep 3
 shot 04-play-locally
+screen "play on this phone too"
 grep -q "LocalPlayer" "$OUT/logcat.txt" && grep "LocalPlayer" "$OUT/logcat.txt" | tail -3
 
 # ------------------------------------------------------------------ Diagnostics
@@ -140,7 +174,7 @@ sleep 2
 shot 05-stopped
 
 kill $LOGCAT_PID 2>/dev/null || true
-grep -E "AndroidRuntime|FATAL|SyncSpeaker|CaptureEngine|PartyService|StreamServer|LocalPlayer" "$OUT/logcat.txt" | grep -v "^--" | tail -60 || true
+applog "final" 60
 if grep -q "FATAL EXCEPTION" "$OUT/logcat.txt"; then
   log "app crashed:"
   grep -A 25 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -60

@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.media.projection.MediaProjectionConfig
 import android.media.projection.MediaProjectionManager
 import android.os.Build
+import android.util.Log
 import android.widget.Toast
 
 /**
@@ -39,6 +40,7 @@ abstract class ProjectionActivity : Activity() {
         ) {
             needed += Manifest.permission.POST_NOTIFICATIONS
         }
+        Log.i(TAG, "beginCapture($mode): missing permissions=$needed")
         if (needed.isEmpty()) requestProjection() else requestPermissions(needed.toTypedArray(), REQ_PERMISSIONS)
     }
 
@@ -60,12 +62,19 @@ abstract class ProjectionActivity : Activity() {
         } else {
             mpm.createScreenCaptureIntent()
         }
-        startActivityForResult(intent, REQ_PROJECTION)
+        Log.i(TAG, "requesting MediaProjection consent")
+        try {
+            startActivityForResult(intent, REQ_PROJECTION)
+        } catch (e: Exception) {
+            Log.e(TAG, "cannot open the consent dialog", e)
+            Toast.makeText(this, R.string.need_projection_permission, Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQ_PROJECTION) return
+        Log.i(TAG, "MediaProjection consent result=$resultCode data=${data != null}")
         if (resultCode == RESULT_OK && data != null) {
             PartyService.start(this, resultCode, data, pendingMode)
         } else {
@@ -74,6 +83,7 @@ abstract class ProjectionActivity : Activity() {
     }
 
     companion object {
+        private const val TAG = "SyncSpeaker"
         const val EXTRA_AUTOSTART = "autostart"
         private const val REQ_PERMISSIONS = 10
         private const val REQ_PROJECTION = 11

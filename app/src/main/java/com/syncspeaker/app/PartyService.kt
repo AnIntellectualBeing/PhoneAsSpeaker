@@ -51,7 +51,9 @@ class PartyService : Service() {
                     PartyState.update { it.copy(urls = urls) }
                     updateNotification()
                 }
-                main.postDelayed(this, 3000)
+                val info = server?.listenerInfo().orEmpty()
+                if (info != PartyState.snapshot.listenerInfo) PartyState.update { it.copy(listenerInfo = info) }
+                main.postDelayed(this, 2000)
             }
         }
     }
@@ -65,6 +67,7 @@ class PartyService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        Log.i(TAG, "onStartCommand ${intent?.action} mode=${intent?.getStringExtra(EXTRA_MODE)}")
         when (intent?.action) {
             ACTION_STOP -> {
                 stopEverything()
@@ -119,6 +122,7 @@ class PartyService : Service() {
             return false
         }
         projection = proj
+        Log.i(TAG, "MediaProjection acquired, starting $newMode")
         proj.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
                 // The user stopped sharing from the system UI (status bar chip, lock, ...).
@@ -146,6 +150,7 @@ class PartyService : Service() {
                 main.post { updateNotification() }
             }
             if (prefs.playLocally) setLocalPlayback(true)
+            Log.i(TAG, "server listening on port $port, urls=${NetworkUtils.listenerUrls(port)}")
         }
 
         val now = Protocol.hostNowMs()
@@ -230,7 +235,10 @@ class PartyService : Service() {
         releaseLocks()
         mode = PartyState.Mode.IDLE
         PartyState.update {
-            it.copy(mode = PartyState.Mode.IDLE, listeners = 0, urls = emptyList(), level = com.syncspeaker.app.core.Level.SILENT, localPlayback = false)
+            it.copy(
+                mode = PartyState.Mode.IDLE, listeners = 0, urls = emptyList(), level = com.syncspeaker.app.core.Level.SILENT,
+                localPlayback = false, listenerInfo = emptyList(),
+            )
         }
     }
 

@@ -3,6 +3,7 @@ package com.syncspeaker.app
 import android.os.Handler
 import android.os.Looper
 import com.syncspeaker.app.core.Level
+import com.syncspeaker.app.server.StreamServer
 import java.util.concurrent.CopyOnWriteArraySet
 
 /** What the foreground service is doing, observed by the activities (always on the main thread). */
@@ -20,6 +21,7 @@ object PartyState {
         val captureStartedMs: Double = 0.0,
         val error: String? = null,
         val localPlayback: Boolean = false,
+        val listenerInfo: List<StreamServer.ListenerInfo> = emptyList(),
     )
 
     private val main = Handler(Looper.getMainLooper())

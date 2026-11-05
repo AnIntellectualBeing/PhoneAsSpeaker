@@ -127,6 +127,7 @@ function createServer(options = {}) {
     if (urlPath === '/status.json' || urlPath === '/api/info') {
       const body = JSON.stringify({
         listeners: listeners.size,
+        listenerList: listenerList(),
         session: sessionId,
         hostConnected: !!hostSocket,
         testSource: opts.source,
@@ -176,9 +177,14 @@ function createServer(options = {}) {
     }
   }
 
-  function notifyHost() {
-    if (hostSocket) hostSocket.sendText(JSON.stringify({ type: 'listeners', count: listeners.size }));
+  function listenerList() {
+    return [...listeners].map((l) => Object.assign({ name: 'Phone', state: 'connecting', syncMs: null }, l.report || {}));
   }
+
+  function notifyHost() {
+    if (hostSocket) hostSocket.sendText(JSON.stringify({ type: 'listeners', count: listeners.size, list: listenerList() }));
+  }
+  const notifyTimer = setInterval(notifyHost, 2000);
 
   const wss = new WebSocketServer(server, { path: '/ws' });
   wss.on('connection', (ws, req) => {
@@ -210,7 +216,13 @@ function createServer(options = {}) {
       const t1 = hostNow();
       let msg;
       try { msg = JSON.parse(text); } catch (e) { return; }
-      if (msg.type === 'ping') {
+      if (msg.type === 'report' && role === 'listener') {
+        ws.report = {
+          name: String(msg.name || 'Phone').slice(0, 24),
+          state: String(msg.state || 'unknown').slice(0, 16),
+          syncMs: Number.isFinite(msg.syncMs) ? msg.syncMs : null,
+        };
+      } else if (msg.type === 'ping') {
         deliver(ws, () => ws.sendText(JSON.stringify({ type: 'pong', id: msg.id, t0: msg.t0, t1, t2: hostNow() })));
       } else if (role === 'host' && ws === hostSocket) {
         if (msg.type === 'format') {
@@ -293,6 +305,7 @@ function createServer(options = {}) {
     },
     close() {
       clearInterval(testTimer);
+      clearInterval(notifyTimer);
       wss.closeAll();
       return new Promise((resolve) => server.close(() => resolve()));
     },

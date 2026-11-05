@@ -242,12 +242,46 @@
     }
   }
 
+  // Keeping the screen on matters: many phones stop web audio when the screen turns off.
+  // The Wake Lock API needs HTTPS, which a phone-hosted LAN page doesn't have. Fallback: a tiny,
+  // silent, muted looping video (embedded, no network): playing video keeps most phones awake.
+  const KEEP_AWAKE_MP4 = 'data:video/mp4;base64,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';
+  let keepAwakeVideo = null, keepAwakeMode = 'off';
+
   async function requestWakeLock() {
     try {
       if ('wakeLock' in navigator && document.visibilityState === 'visible') {
         wakeLock = await navigator.wakeLock.request('screen');
+        keepAwakeMode = 'Wake Lock API';
+        return;
       }
-    } catch (e) { /* not available over plain http on most browsers: fail silently */ }
+    } catch (e) { /* not available over plain http on most browsers */ }
+    startKeepAwakeVideo();
+  }
+
+  function startKeepAwakeVideo() {
+    try {
+      if (!keepAwakeVideo) {
+        const v = document.createElement('video');
+        v.setAttribute('playsinline', '');
+        v.setAttribute('muted', '');
+        v.setAttribute('aria-hidden', 'true');
+        v.muted = true;
+        v.loop = true;
+        v.src = KEEP_AWAKE_MP4;
+        v.style.cssText = 'position:fixed;left:0;bottom:0;width:2px;height:2px;opacity:0.01;pointer-events:none;';
+        document.body.appendChild(v);
+        keepAwakeVideo = v;
+      }
+      const p = keepAwakeVideo.play();
+      if (p && p.then) p.then(() => { keepAwakeMode = 'video fallback'; }, () => { keepAwakeMode = 'unavailable'; });
+    } catch (e) { keepAwakeMode = 'unavailable'; }
+  }
+
+  function stopKeepAwake() {
+    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    if (keepAwakeVideo) { keepAwakeVideo.pause(); keepAwakeVideo.remove(); keepAwakeVideo = null; }
+    keepAwakeMode = 'off';
   }
 
   // ---------- join / leave
@@ -305,7 +339,7 @@
     if (player) player.destroy();
     if (ctx) ctx.close().catch(() => {});
     if (silentAudio) { silentAudio.pause(); silentAudio = null; }
-    if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+    stopKeepAwake();
     ctx = player = conn = null;
     $('party-view').hidden = true;
     $('join-view').hidden = false;
@@ -336,6 +370,32 @@
 
   // ---------- status UI
   let uiTimer = null;
+  let lastState = 'connecting';
+  let lastReportAt = 0;
+
+  /** A friendly device name for the host's listener list (no personal data). */
+  function deviceName() {
+    const ua = navigator.userAgent;
+    if (/iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'iPad';
+    if (/iPhone/.test(ua)) return 'iPhone';
+    const m = /Android [\d.]+; ([^;)]+?)(?: Build|\))/.exec(ua);
+    if (m && m[1] && m[1] !== 'K' && m[1].length <= 24) return m[1];
+    if (/Android/.test(ua)) return 'Android phone';
+    if (/Mac/.test(ua)) return 'Mac';
+    if (/Windows/.test(ua)) return 'Windows PC';
+    if (/Linux|CrOS/.test(ua)) return 'Computer';
+    return 'Phone';
+  }
+
+  function sendReport() {
+    if (!conn || connStatus !== 'open') return;
+    const ctxState = ctx ? ctx.state : 'closed';
+    conn.send({
+      type: 'report', name: deviceName(),
+      state: ctxState !== 'running' ? 'suspended' : lastState,
+      syncMs: Math.round(player.syncErrorMs() * 10) / 10,
+    });
+  }
 
   function renderStatus() {
     if (!player) return;
@@ -348,6 +408,9 @@
     else if (player.playing) { state = 'playing'; text = 'Playing'; }
     else if (now - player.lastChunkAt > 1500) { state = 'waiting'; text = 'Connected · waiting for audio'; hint = 'The host has not started sharing audio yet.'; }
     else { state = 'syncing'; text = 'Syncing…'; if (player.scheduler.stats.dropped > 50) hint = 'Audio arrives too late. Move closer to the Wi-Fi router or ask the host to raise the delay.'; }
+
+    lastState = state;
+    if (now - lastReportAt > 4000) { lastReportAt = now; sendReport(); }
 
     const st = $('status');
     st.dataset.state = state;
@@ -381,6 +444,7 @@
       ['Output latency', ((ctx.outputLatency || 0) * 1000).toFixed(0) + ' + ' + ((ctx.baseLatency || 0) * 1000).toFixed(0) + ' ms'],
       ['Sample rate', player.format.sampleRate + ' → ' + ctx.sampleRate + ' Hz'],
       ['AudioContext', ctx.state],
+      ['Keep screen on', keepAwakeMode],
     ];
     const dl = $('details');
     dl.textContent = '';
