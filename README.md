@@ -162,8 +162,10 @@ Server options: `--port 8080 --delay 1000 --host 0.0.0.0`.
    is fixed by playing up to 0.5 % faster or slower, which you can't hear. A big jump (more than 15 ms) re-syncs
    immediately with a tiny fade. Chunks that arrive too late are skipped.
 
-In automated tests (3 listeners in headless Chromium, including 0–60 ms of simulated network jitter), listeners land
-within **about 1 ms** of each other. Real phones add their own audio-output latency, which browsers report
+In automated tests, listeners land within **about 1 ms** of each other. That covers 3 listeners in headless Chromium,
+including runs with 0–60 ms of simulated network jitter. It also covers the full Android chain on Android 10 and 14
+emulators: a music-like app is captured, the phone serves the page and streams to 3 listeners, and
+"Play on this phone too" stays within a few ms of the listeners. Real phones add their own audio-output latency, which browsers report
 imperfectly. Bluetooth adds 100–300 ms. That is what the per-phone **sync nudge** is for.
 
 Details: [PROTOCOL.md](PROTOCOL.md).
