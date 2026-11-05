@@ -96,6 +96,8 @@ class CaptureEngine(
         var framesRead = 0L
         var lastLevelMs = 0.0
         var lastLogMs = 0.0
+        var meterPeak = Level.SILENT
+        var logPeak = Level.SILENT
         var usedHwTimestamp = false
 
         try {
@@ -130,16 +132,21 @@ class CaptureEngine(
                 ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).asShortBuffer().put(samples)
                 onChunk(timestampMs, bytes, samples.copyOf())
 
+                // Report the LOUDEST chunk since the last report, so short sounds are never missed.
+                val level = Level.of(samples)
+                if (level.db > meterPeak.db) meterPeak = level
+                if (level.db > logPeak.db) logPeak = level
                 if (now - lastLevelMs >= 50) {
                     lastLevelMs = now
-                    val level = Level.of(samples)
-                    onLevel(level)
-                    if (now - lastLogMs >= 5000) {
-                        lastLogMs = now
-                        Log.i(TAG, String.format(java.util.Locale.ROOT,
-                            "capture: %.1f dBFS, %d s captured, hw timestamps=%b, re-anchors=%d, ts-now=%.1f ms",
-                            level.db, framesRead / SAMPLE_RATE, usedHwTimestamp, timestamper.discontinuities, timestampMs - now))
-                    }
+                    onLevel(meterPeak)
+                    meterPeak = Level.SILENT
+                }
+                if (now - lastLogMs >= 5000) {
+                    lastLogMs = now
+                    Log.i(TAG, String.format(java.util.Locale.ROOT,
+                        "capture: loudest %.1f dBFS in the last 5 s, %d s captured, hw timestamps=%b, re-anchors=%d, ts-now=%.1f ms",
+                        logPeak.db, framesRead / SAMPLE_RATE, usedHwTimestamp, timestamper.discontinuities, timestampMs - now))
+                    logPeak = Level.SILENT
                 }
             }
         } catch (e: Exception) {

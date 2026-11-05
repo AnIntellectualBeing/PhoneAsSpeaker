@@ -126,8 +126,11 @@ class PartyService : Service() {
         proj.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
                 // The user stopped sharing from the system UI (status bar chip, lock, ...).
+                // Only react if THIS projection is still the active one: when a new party/test
+                // replaces an old one, the old projection's onStop arrives after the new start.
                 main.post {
-                    if (projection != null) {
+                    if (projection === proj) {
+                        Log.i(TAG, "MediaProjection stopped by the system/user")
                         stopEverything()
                         stopSelf()
                     }

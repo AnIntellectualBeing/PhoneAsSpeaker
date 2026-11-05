@@ -36,8 +36,8 @@ PY
 # Our app's log lines so far (and system lines about media projection / our package).
 applog() {
   echo "--- app log ($1):"
-  grep -E "SyncSpeaker|PartyService|CaptureEngine|StreamServer|LocalPlayer|MediaProjection|syncspeaker|FATAL|AndroidRuntime: " "$OUT/logcat.txt" \
-    | grep -v -E "uiautomator|RuntimeInit|boot image|lock profiling|Shutting down VM|Calling main" | tail -${2:-25} | sed 's/^/    /'
+  grep -a -E "[VDIWEF]/(SyncSpeaker|PartyService|CaptureEngine|StreamServer|LocalPlayer|AndroidRuntime)|FATAL" "$OUT/logcat.txt" \
+    | tail -${2:-25} | sed 's/^/    /'
 }
 shot() { adb exec-out screencap -p > "$OUT/$1.png" 2>/dev/null || true; adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1 && adb shell cat /sdcard/ui.xml > "$OUT/$1.xml" 2>/dev/null || true; }
 
@@ -111,15 +111,20 @@ sleep 6
 screen "capture test running"
 applog "capture test"
 shot 01-capture-test
-if grep -q "capture: " "$OUT/logcat.txt"; then
-  grep "capture: " "$OUT/logcat.txt" | tail -3
+if grep -a -q "capture: " "$OUT/logcat.txt"; then
+  grep -a "capture: " "$OUT/logcat.txt" | tail -3
 else
   log "no capture log lines yet"
 fi
+# The live meter keeps the UI busy, so UI dumps can fail on old Android: also check the log.
+LOUDEST=$(grep -a -o "loudest -\?[0-9.]* dBFS" "$OUT/logcat.txt" | awk '{print $2}' | sort -g | tail -1)
+log "loudest captured level: ${LOUDEST:-none} dBFS"
 if grep -q "Sound detected" "$OUT/01-capture-test.xml" 2>/dev/null; then
-  log "Capture test shows: Sound detected ✓"
+  log "Capture test screen shows: Sound detected ✓"
+elif [ -n "$LOUDEST" ] && awk -v d="$LOUDEST" 'BEGIN { exit !(d > -40) }'; then
+  log "Capture works: beeps captured at ${LOUDEST} dBFS ✓"
 else
-  log "Capture test did NOT report sound"
+  log "Capture test did NOT capture the beeps"
   FAIL=1
 fi
 
@@ -161,7 +166,7 @@ tap_text 'Play on this phone too.*' || true
 sleep 3
 shot 04-play-locally
 screen "play on this phone too"
-grep -q "LocalPlayer" "$OUT/logcat.txt" && grep "LocalPlayer" "$OUT/logcat.txt" | tail -3
+grep -a "LocalPlayer" "$OUT/logcat.txt" | tail -3
 
 # ------------------------------------------------------------------ Diagnostics
 adb shell dumpsys activity services $APP > "$OUT/dumpsys-services.txt" 2>&1 || true
@@ -175,9 +180,9 @@ shot 05-stopped
 
 kill $LOGCAT_PID 2>/dev/null || true
 applog "final" 60
-if grep -q "FATAL EXCEPTION" "$OUT/logcat.txt"; then
+if grep -a -q "FATAL EXCEPTION" "$OUT/logcat.txt"; then
   log "app crashed:"
-  grep -A 25 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -60
+  grep -a -A 25 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -60
   FAIL=1
 fi
 

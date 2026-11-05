@@ -54,8 +54,10 @@ same committed debug key, so a newer APK installs over an older one.
 3. Open **SyncSpeaker** → tap **Start Party**.
    - Allow the **audio permission**. Android requires it to capture other apps' audio. SyncSpeaker never uses the microphone.
    - Allow **screen/audio sharing**. On Android 14+ choose **"Entire screen"** if asked; nothing is recorded or sent except audio.
-4. The app shows a **QR code** and an address like `http://192.168.1.23:8080`, plus the number of connected listeners
-   and a level meter that moves when audio is being captured.
+4. The app shows a **QR code** and an address like `http://192.168.1.23:8080` (or tap **Share link** to send it
+   through WhatsApp etc.), a level meter that moves when audio is being captured, and the list of connected phones
+   with each phone's sync quality (e.g. `iPhone · ±4 ms ✓`). No Wi-Fi around? Tap **Hotspot settings**, turn the
+   hotspot on and let friends join it.
 5. Switch back to your music app. The party keeps running in the background and while the phone is locked
    (a notification with a **Stop** button stays visible). Tap **Stop Party** when you are done.
 
@@ -73,7 +75,8 @@ Settings on the main screen:
 1. Join the **same Wi-Fi** as the host (or the host's **hotspot**).
 2. Scan the QR code with the camera, or type the address shown on the host.
 3. Tap **Join Party**. On iPhone this tap is required to unlock audio.
-4. Turn the volume up. **iPhone:** turn off Silent mode. Keep the page open, and keep the screen on if you can.
+4. Turn the volume up. **iPhone:** turn off Silent mode. Keep the page open. The page tries to keep the screen on
+   (Wake Lock API, or a tiny silent looping video where that API is unavailable over plain `http://`).
 
 The page shows **Connecting → Syncing → Playing**, a **sync quality** value (estimated error in ms), a volume slider
 and a **sync nudge** slider (−200…+200 ms, remembered on that phone). If one phone sounds slightly early or late
@@ -172,8 +175,8 @@ Details: [PROTOCOL.md](PROTOCOL.md).
 - **Some apps block audio capture** (Android lets apps opt out). Use the Capture test.
 - **The host must be Android 10+** (or a computer with Chrome/Edge). **An iPhone can't host**: iOS has no API to capture other apps' audio.
 - **Bluetooth adds delay** (often 100–300 ms) on that phone. Use the sync nudge, or play through the phone speaker.
-- **Locking a listener's screen can stop audio**, especially on iPhone. The page tries to keep the screen awake,
-  but the Wake Lock API is usually unavailable over plain `http://`.
+- **Locking a listener's screen can stop audio**, especially on iPhone. The page tries to keep the screen awake
+  (Wake Lock API where available, otherwise a silent looping video), but a manual lock still pauses Safari.
 - **Local network only** in v1. The host must be reachable from the listeners. Some public/guest Wi-Fi networks
   isolate devices from each other ("client isolation"); use the host's hotspot instead.
 - **Bandwidth:** v1 streams uncompressed audio (~1.5 Mbit/s per listener), which is fine for ~10–20 phones on decent Wi-Fi.
@@ -199,7 +202,18 @@ node server/server.js            # PC host mode
 node server/test/run-tests.js    # unit + integration tests
 ```
 
-CI (`.github/workflows/build.yml`) builds and tests everything on every push. When a `v*` tag is pushed, it also
+CI (`.github/workflows/build.yml`) builds and tests everything on every push, including an **end-to-end test on
+Android emulators (Android 10 and 14)**: `scripts/e2e-emulator.sh` installs the app plus a tiny "beep source" app
+(`testsource/`, plays a beep every second like a music app would), runs the Capture test, starts a party, connects
+three headless-Chromium listeners through `adb forward` and checks that they hear the beeps on a steady beat and in
+sync. You can run the same script against your own phone over USB (`adb devices` must list it):
+
+```bash
+./gradlew assembleDebug && bash scripts/e2e-emulator.sh
+```
+
+The script pre-approves screen capture with `adb shell appops set com.syncspeaker.app PROJECT_MEDIA allow`; if your
+phone still shows the consent dialog, the script tries to tap "Start now" for you. When a `v*` tag is pushed, it also
 publishes the APK as a GitHub Release:
 
 ```bash
@@ -269,6 +283,8 @@ app/                     Android host app (Kotlin, framework Views, no AndroidX)
     server/Protocol.kt     wire format, AudioEncoder interface (Opus TODO)
     core/                  pure Kotlin: ChunkTimestamper, PlaybackAligner, LevelMeter
     MainActivity.kt, CaptureTestActivity.kt
+testsource/              CI-only helper app: plays a beep every second as media audio
+scripts/e2e-emulator.sh  end-to-end test on an emulator or USB-connected phone
 web/listener/            listener page (index.html) + shared sync engine (syncspeaker.js)
                          -> packaged into the APK as assets AND served by the Node server
 web/pc-host/             PC host page (getDisplayMedia + AudioWorklet), QR encoder
