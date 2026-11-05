@@ -154,12 +154,15 @@ adb shell am start -n $SRC/.BeepActivity >/dev/null
 sleep 2
 
 log "3 headless listeners for 15 s"
-node server/test/browser-test.js --url http://127.0.0.1:8080 --seconds 15 --listeners 3 | tee "$OUT/browser-test.txt"
-[ "${PIPESTATUS[0]}" = "0" ] || FAIL=1
-
+node server/test/browser-test.js --url http://127.0.0.1:8080 --seconds 15 --listeners 3 > "$OUT/browser-test.txt" 2>&1 &
+BT=$!
+# While the listeners are connected: bring the host app to the front for a screenshot.
+sleep 10
 adb shell am start -n $APP/.MainActivity >/dev/null
-sleep 2
-shot 03-party-after-listeners
+sleep 3
+shot 03-listeners-connected
+wait $BT || FAIL=1
+cat "$OUT/browser-test.txt"
 screen "host app with listeners connected"
 curl -sf http://127.0.0.1:8080/status.json && echo
 
@@ -200,6 +203,17 @@ if grep -a -q "FATAL EXCEPTION" "$OUT/logcat.txt"; then
   log "app crashed:"
   grep -a -A 25 "FATAL EXCEPTION" "$OUT/logcat.txt" | head -60
   FAIL=1
+fi
+
+# Screenshots as base64 in the job log too (handy when artifacts can't be downloaded).
+if [ "${PRINT_SCREENSHOTS:-1}" = 1 ]; then
+  for f in 01-capture-test 03-listeners-connected 04-play-locally; do
+    [ -s "$OUT/$f.png" ] || continue
+    echo "SCREENSHOT-BEGIN $f"
+    base64 -w0 "$OUT/$f.png"
+    echo
+    echo "SCREENSHOT-END $f"
+  done
 fi
 
 if [ $FAIL = 0 ]; then log "E2E PASSED"; else log "E2E FAILED"; fi
