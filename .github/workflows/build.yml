@@ -94,3 +94,63 @@ jobs:
           t --pc-host
           t --pc-host --real-capture
           t --jitter 60
+
+  emulator:
+    name: Emulator end-to-end (API ${{ matrix.api }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 29
+            target: default
+          - api: 34
+            target: google_apis
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v5
+
+      - name: Build APKs (app + beep source helper)
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run end-to-end test on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          disable-animations: true
+          # Note: no -no-audio, the audio system must be running for playback capture.
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -camera-back none -camera-front none
+          script: OUT=e2e-output-api${{ matrix.api }} bash scripts/e2e-emulator.sh
+
+      - name: Upload screenshots + logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: e2e-api${{ matrix.api }}
+          path: e2e-output-api${{ matrix.api }}/

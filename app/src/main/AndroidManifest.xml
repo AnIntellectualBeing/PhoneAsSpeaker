@@ -39,7 +39,7 @@
 
         <activity
             android:name=".CaptureTestActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/capture_test_title"
             android:parentActivityName=".MainActivity" />
 

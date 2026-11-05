@@ -16,6 +16,18 @@ import android.widget.Toast
 abstract class ProjectionActivity : Activity() {
     private var pendingMode = PartyState.Mode.PARTY
 
+    /**
+     * Automation hook (used by the CI emulator test, handy for adb too):
+     *   adb shell am start -n com.syncspeaker.app/.MainActivity --ez autostart true
+     * starts the same flow as tapping the button (permission prompts still apply).
+     */
+    protected fun handleAutostart(intent: Intent?, mode: PartyState.Mode) {
+        if (intent?.getBooleanExtra(EXTRA_AUTOSTART, false) == true && PartyState.snapshot.mode != mode) {
+            intent.removeExtra(EXTRA_AUTOSTART)
+            beginCapture(mode)
+        }
+    }
+
     protected fun beginCapture(mode: PartyState.Mode) {
         pendingMode = mode
         val needed = mutableListOf<String>()
@@ -62,6 +74,7 @@ abstract class ProjectionActivity : Activity() {
     }
 
     companion object {
+        const val EXTRA_AUTOSTART = "autostart"
         private const val REQ_PERMISSIONS = 10
         private const val REQ_PROJECTION = 11
     }

@@ -1,5 +1,6 @@
 package com.syncspeaker.app
 
+import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
@@ -58,6 +59,12 @@ class CaptureTestActivity : ProjectionActivity() {
                 beginCapture(PartyState.Mode.CAPTURE_TEST)
             }
         }
+        if (savedInstanceState == null) handleAutostart(intent, PartyState.Mode.CAPTURE_TEST)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleAutostart(intent, PartyState.Mode.CAPTURE_TEST)
     }
 
     override fun onStart() {

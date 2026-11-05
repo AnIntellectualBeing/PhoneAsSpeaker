@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "SyncSpeaker"
 include(":app")
+include(":testsource") // CI-only helper for the emulator end-to-end test

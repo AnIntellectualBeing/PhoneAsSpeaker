@@ -97,6 +97,12 @@ class MainActivity : ProjectionActivity() {
             prefs.keepScreenOn = checked
             render(PartyState.snapshot)
         }
+        if (savedInstanceState == null) handleAutostart(intent, PartyState.Mode.PARTY)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleAutostart(intent, PartyState.Mode.PARTY)
     }
 
     override fun onStart() {

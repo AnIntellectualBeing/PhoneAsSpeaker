@@ -95,6 +95,8 @@ class CaptureEngine(
         val at = AudioTimestamp()
         var framesRead = 0L
         var lastLevelMs = 0.0
+        var lastLogMs = 0.0
+        var usedHwTimestamp = false
 
         try {
             record.startRecording()
@@ -117,7 +119,10 @@ class CaptureEngine(
                 if (record.getTimestamp(at, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
                     val fromTs = at.nanoTime / 1_000_000.0 + (frameIndex - at.framePosition) * 1000.0 / SAMPLE_RATE
                     // Sanity check: must lie within the last two seconds.
-                    if (fromTs <= now && abs(now - fromTs) < 2000) measured = fromTs
+                    if (fromTs <= now && abs(now - fromTs) < 2000) {
+                        measured = fromTs
+                        usedHwTimestamp = true
+                    }
                 }
                 val timestampMs = timestamper.timestampFor(frameIndex, measured)
 
@@ -127,7 +132,14 @@ class CaptureEngine(
 
                 if (now - lastLevelMs >= 50) {
                     lastLevelMs = now
-                    onLevel(Level.of(samples))
+                    val level = Level.of(samples)
+                    onLevel(level)
+                    if (now - lastLogMs >= 5000) {
+                        lastLogMs = now
+                        Log.i(TAG, String.format(java.util.Locale.ROOT,
+                            "capture: %.1f dBFS, %d s captured, hw timestamps=%b, re-anchors=%d, ts-now=%.1f ms",
+                            level.db, framesRead / SAMPLE_RATE, usedHwTimestamp, timestamper.discontinuities, timestampMs - now))
+                    }
                 }
             }
         } catch (e: Exception) {

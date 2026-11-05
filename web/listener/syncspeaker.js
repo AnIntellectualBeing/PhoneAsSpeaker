@@ -246,6 +246,9 @@
       this.ctx = ctx;
       this.offsetMs = null; // perfMs at which ctx time 0 is heard
       this.source = 'none';
+      this.devCount = 0;
+      this.devSign = 0;
+      this.steps = 0; // detected audio clock steps (diagnostics)
     }
 
     latencyS() {
@@ -271,10 +274,18 @@
         }
       }
       if (off === null) off = perfNow + this.latencyS() * 1000 - ctx.currentTime * 1000;
-      if (this.offsetMs === null || Math.abs(off - this.offsetMs) > 30 || source !== this.source) {
+      const dev = this.offsetMs === null ? Infinity : off - this.offsetMs;
+      // A persistent deviation (same sign, > 8 ms, 5 samples in a row = ~0.1 s) is a real step
+      // of the audio clock (output underrun, device change), not callback jitter: follow it now.
+      if (Math.abs(dev) > 8 && Math.sign(dev) === this.devSign) this.devCount++;
+      else this.devCount = Math.abs(dev) > 8 ? 1 : 0;
+      this.devSign = Math.sign(dev);
+      if (this.offsetMs === null || Math.abs(dev) > 30 || this.devCount >= 5 || source !== this.source) {
         this.offsetMs = off;
+        this.devCount = 0;
+        if (Number.isFinite(dev)) this.steps++;
       } else {
-        this.offsetMs += (off - this.offsetMs) * 0.05; // smooth out callback jitter
+        this.offsetMs += dev * 0.05; // smooth out callback jitter
       }
       this.source = source;
     }

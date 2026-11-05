@@ -97,14 +97,21 @@ class LocalPlayer(
             return maxOf(estimate, now)
         }
 
+        var lastLog = 0.0
         try {
             track.play()
+            Log.i(TAG, "Local playback started (${if (useAlarmStream) "alarm" else "media"} volume), delay $delayMs ms")
             while (running) {
                 val chunk = queue.poll(200, TimeUnit.MILLISECONDS) ?: continue
                 val frames = chunk.samples.size / channels
                 val desiredMs = chunk.timestampMs + delayMs
                 val errorMs = nextFramePresentationMs() - desiredMs
                 val plan = aligner.plan(errorMs, frames)
+                val now = Protocol.hostNowMs()
+                if (now - lastLog > 5000) {
+                    lastLog = now
+                    Log.i(TAG, String.format(java.util.Locale.ROOT, "local playback error %.1f ms (plan %s)", errorMs, plan))
+                }
                 if (plan.skipFrames >= frames) continue // far too late: drop
                 var toSilence = minOf(plan.silenceFrames, sampleRate * 5)
                 while (toSilence > 0 && running) {
