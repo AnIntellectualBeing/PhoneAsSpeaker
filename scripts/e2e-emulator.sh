@@ -161,6 +161,10 @@ sleep 10
 adb shell am start -n $APP/.MainActivity >/dev/null
 sleep 3
 shot 03-listeners-connected
+adb shell input swipe 160 520 160 120 300
+sleep 2
+shot 03b-listeners-scrolled
+adb shell input swipe 160 120 160 520 300
 wait $BT || FAIL=1
 cat "$OUT/browser-test.txt"
 screen "host app with listeners connected"
@@ -207,7 +211,7 @@ fi
 
 # Screenshots as base64 in the job log too (handy when artifacts can't be downloaded).
 if [ "${PRINT_SCREENSHOTS:-1}" = 1 ]; then
-  for f in 01-capture-test 03-listeners-connected 04-play-locally; do
+  for f in 01-capture-test 03-listeners-connected 03b-listeners-scrolled; do
     [ -s "$OUT/$f.png" ] || continue
     echo "SCREENSHOT-BEGIN $f"
     base64 -w0 "$OUT/$f.png"

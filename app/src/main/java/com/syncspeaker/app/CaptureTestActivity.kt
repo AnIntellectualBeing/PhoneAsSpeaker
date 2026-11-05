@@ -30,6 +30,8 @@ class CaptureTestActivity : ProjectionActivity() {
     private var zeroVolumeSince = 0.0
     private var lastTesting: Boolean? = null
     private var lastDbTextMs = 0.0
+    private var heldDb = -90f
+    private var heldAt = 0.0
     private val observer: (PartyState.Snapshot) -> Unit = { render(it) }
 
     private val volumePoll = object : Runnable {
@@ -99,9 +101,14 @@ class CaptureTestActivity : ProjectionActivity() {
         }
         meter.setLevel(s.level.meter)
         val now = Protocol.hostNowMs()
-        if (now - lastDbTextMs > 250) { // a readable number, not a blur of 20 updates per second
+        // Show the loudest level of the last 1.5 s: readable, and short sounds don't vanish.
+        if (s.level.db >= heldDb || now - heldAt > 1500) {
+            heldDb = s.level.db
+            heldAt = now
+        }
+        if (now - lastDbTextMs > 250) {
             lastDbTextMs = now
-            dbText.setTextIfChanged(String.format(Locale.ROOT, "%.0f dBFS", s.level.db))
+            dbText.setTextIfChanged(String.format(Locale.ROOT, "%.0f dBFS", heldDb))
         }
         val soundNow = now - s.lastSoundMs < 1500
         verdict.setTextIfChanged(

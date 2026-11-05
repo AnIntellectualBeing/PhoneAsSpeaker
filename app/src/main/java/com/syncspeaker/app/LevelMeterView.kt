@@ -14,7 +14,7 @@ import android.view.View
 class LevelMeterView @JvmOverloads constructor(context: Context, attrs: AttributeSet? = null) : View(context, attrs) {
     private val track = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0x33888888 }
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val peakPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFFFFFFF.toInt() }
+    private val peakPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = context.getColor(R.color.text) }
     private val rect = RectF()
     private var value = 0f
     private var shown = 0f
