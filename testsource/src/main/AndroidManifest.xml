@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application android:label="Beep source" android:theme="@android:style/Theme.DeviceDefault">
         <activity android:name=".BeepActivity" android:exported="true">
             <intent-filter>
@@ -7,5 +11,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <!-- Like a real music app: plays from a mediaPlayback foreground service, so Android does
+             not freeze it in the background (Android 14 freezes cached background apps). -->
+        <service
+            android:name=".BeepService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 </manifest>

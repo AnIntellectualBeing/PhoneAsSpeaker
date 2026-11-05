@@ -140,10 +140,12 @@
   // ---------------------------------------------------------------------------------------------
 
   class ChunkTimestamper {
-    constructor(sampleRate, reanchorThresholdMs = 40, slewFactor = 0.02) {
+    constructor(sampleRate, reanchorThresholdMs = 40, slewFactor = 0.02, persistChunks = 3) {
       this.sampleRate = sampleRate;
       this.threshold = reanchorThresholdMs;
       this.slew = slewFactor;
+      this.persist = persistChunks; // a jump must persist this many chunks (spikes are ignored)
+      this.overCount = 0;
       this.anchorMs = NaN;
       this.anchorFrame = 0;
       this.discontinuities = 0;
@@ -158,11 +160,14 @@
       const predicted = this.anchorMs + (frameIndex - this.anchorFrame) * 1000 / this.sampleRate;
       const error = measuredMs - predicted;
       if (Math.abs(error) > this.threshold) {
+        if (++this.overCount < this.persist) return predicted;
+        this.overCount = 0;
         this.discontinuities++;
         this.anchorMs = measuredMs;
         this.anchorFrame = frameIndex;
         return measuredMs;
       }
+      this.overCount = 0;
       const correction = error * this.slew;
       this.anchorMs += correction;
       return predicted + correction;

@@ -31,9 +31,14 @@ class CoreTest {
         var t = 0.0
         for (i in 0 until 3000) t = ts.timestampFor(i * 960L, i * 20.0 * 1.0001)
         assertEquals(2999 * 20.0 * 1.0001, t, 2.0)
-        // A 500 ms gap (capture paused) causes a re-anchor.
-        val after = ts.timestampFor(3000 * 960L, 3000 * 20.0 * 1.0001 + 500)
-        assertEquals(3000 * 20.0 * 1.0001 + 500, after, 0.001)
+        // A single 80 ms measurement spike is ignored (timeline stays continuous)...
+        val spike = ts.timestampFor(3000 * 960L, 3000 * 20.0 * 1.0001 + 80)
+        assertEquals(t + 20.0 * 1.0001, spike, 0.5)
+        assertEquals(0, ts.discontinuities)
+        // ...but a 500 ms gap (frames lost) that persists for 3 chunks causes a re-anchor.
+        var after = 0.0
+        for (k in 3001..3003) after = ts.timestampFor(k * 960L, k * 20.0 * 1.0001 + 500)
+        assertEquals(3003 * 20.0 * 1.0001 + 500, after, 0.05)
         assertEquals(1, ts.discontinuities)
     }
 

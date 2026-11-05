@@ -138,12 +138,15 @@ sleep 2
 screen "party"
 applog "party"
 adb forward tcp:8080 tcp:8080
-for i in $(seq 1 30); do
+for i in $(seq 1 60); do
   if curl -sf http://127.0.0.1:8080/status.json > "$OUT/status.json"; then break; fi
   sleep 1
 done
 cat "$OUT/status.json" 2>/dev/null && echo || { log "server did not come up"; FAIL=1; }
-curl -sf http://127.0.0.1:8080/ | grep -q "Join Party" && log "listener page served ✓" || { log "listener page NOT served"; FAIL=1; }
+PAGE=$(curl -sf http://127.0.0.1:8080/ || true)
+if [[ "$PAGE" == *"Join Party"* ]]; then log "listener page served ✓ (${#PAGE} bytes)"; else log "listener page NOT served"; FAIL=1; fi
+JS=$(curl -sf http://127.0.0.1:8080/syncspeaker.js || true)
+if [[ "$JS" == *"ClockSync"* ]]; then log "sync engine served ✓"; else log "syncspeaker.js NOT served"; FAIL=1; fi
 shot 02-party-started
 
 # The music app is in front, like in real life; SyncSpeaker runs in the background.
@@ -162,11 +165,19 @@ curl -sf http://127.0.0.1:8080/status.json && echo
 
 # ------------------------------------------------------------------ "Play on this phone too"
 log "enabling 'Play on this phone too'"
-tap_text 'Play on this phone too.*' || true
-sleep 3
+adb shell am start -n $APP/.MainActivity --ez play_locally true >/dev/null
+sleep 6
 shot 04-play-locally
 screen "play on this phone too"
-grep -a "LocalPlayer" "$OUT/logcat.txt" | tail -3
+if grep -a -q "Local playback started" "$OUT/logcat.txt"; then
+  grep -a "LocalPlayer" "$OUT/logcat.txt" | tail -3
+  # The host phone's own playback must stay aligned with the listeners (|error| small).
+  LASTERR=$(grep -a -o "local playback error -\?[0-9.]* ms" "$OUT/logcat.txt" | tail -1 | awk '{print $4}')
+  log "host phone playback error: ${LASTERR:-?} ms"
+else
+  log "local playback did NOT start"
+  FAIL=1
+fi
 
 # ------------------------------------------------------------------ Diagnostics
 adb shell dumpsys activity services $APP > "$OUT/dumpsys-services.txt" 2>&1 || true
@@ -174,9 +185,10 @@ adb shell dumpsys media_projection > "$OUT/dumpsys-media-projection.txt" 2>&1 ||
 log "stopping the party"
 adb shell am start -n $APP/.MainActivity >/dev/null
 sleep 1
-tap_text 'Stop Party' || true
+adb shell am start -n $APP/.MainActivity --ez stop_party true >/dev/null
 sleep 2
 shot 05-stopped
+if curl -sf -m 2 http://127.0.0.1:8080/status.json >/dev/null; then log "server still running after Stop"; FAIL=1; else log "party stopped, server closed ✓"; fi
 
 kill $LOGCAT_PID 2>/dev/null || true
 applog "final" 60

@@ -30,6 +30,7 @@ class MainActivity : ProjectionActivity() {
     private lateinit var keepScreenSwitch: Switch
 
     private var qrUrl: String? = null
+    private var lastRunning: Boolean? = null
     private val observer: (PartyState.Snapshot) -> Unit = { render(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,7 +105,26 @@ class MainActivity : ProjectionActivity() {
             prefs.keepScreenOn = checked
             render(PartyState.snapshot)
         }
-        if (savedInstanceState == null) handleAutostart(intent, PartyState.Mode.PARTY)
+        if (savedInstanceState == null) {
+            handleSettingsExtras(intent)
+            handleAutostart(intent, PartyState.Mode.PARTY)
+        }
+    }
+
+    /**
+     * Automation (CI emulator test, adb):
+     *   adb shell am start -n com.syncspeaker.app/.MainActivity --ez play_locally true
+     *   adb shell am start -n com.syncspeaker.app/.MainActivity --ez stop_party true
+     */
+    private fun handleSettingsExtras(i: Intent?) {
+        if (i?.hasExtra(EXTRA_PLAY_LOCALLY) == true) {
+            playLocallySwitch.isChecked = i.getBooleanExtra(EXTRA_PLAY_LOCALLY, false)
+            i.removeExtra(EXTRA_PLAY_LOCALLY)
+        }
+        if (i?.getBooleanExtra(EXTRA_STOP, false) == true) {
+            i.removeExtra(EXTRA_STOP)
+            PartyService.stop(this)
+        }
     }
 
     private fun describeListener(l: com.syncspeaker.app.server.StreamServer.ListenerInfo): String {
@@ -141,6 +161,7 @@ class MainActivity : ProjectionActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        handleSettingsExtras(intent)
         handleAutostart(intent, PartyState.Mode.PARTY)
     }
 
@@ -156,28 +177,31 @@ class MainActivity : ProjectionActivity() {
 
     private fun render(s: PartyState.Snapshot) {
         val running = s.mode == PartyState.Mode.PARTY
-        statusText.setText(
+        statusText.setTextIfChanged(
             when (s.mode) {
                 PartyState.Mode.PARTY -> R.string.status_running
                 PartyState.Mode.CAPTURE_TEST -> R.string.status_test_running
                 PartyState.Mode.IDLE -> R.string.status_idle
             }
         )
-        startButton.setText(if (running) R.string.stop_party else R.string.start_party)
-        startButton.setBackgroundResource(if (running) R.drawable.button_stop else R.drawable.button_primary)
+        startButton.setTextIfChanged(if (running) R.string.stop_party else R.string.start_party)
+        if (running != lastRunning) {
+            lastRunning = running
+            startButton.setBackgroundResource(if (running) R.drawable.button_stop else R.drawable.button_primary)
+        }
 
         errorText.visibility = if (s.error != null) View.VISIBLE else View.GONE
-        errorText.text = s.error ?: ""
+        errorText.setTextIfChanged(s.error ?: "")
 
         partyInfo.visibility = if (running) View.VISIBLE else View.GONE
         if (running) {
             val url = s.urls.firstOrNull()
             if (url == null) {
-                urlText.setText(R.string.no_network)
+                urlText.setTextIfChanged(R.string.no_network)
                 qrImage.visibility = View.GONE
                 qrUrl = null
             } else {
-                urlText.text = url
+                urlText.setTextIfChanged(url)
                 qrImage.visibility = View.VISIBLE
                 if (url != qrUrl) {
                     val px = (250 * resources.displayMetrics.density).toInt()
@@ -188,14 +212,14 @@ class MainActivity : ProjectionActivity() {
             findViewById<View>(R.id.share_button).visibility = if (url == null) View.GONE else View.VISIBLE
             val others = s.urls.drop(1)
             otherUrls.visibility = if (others.isEmpty()) View.GONE else View.VISIBLE
-            otherUrls.text = getString(R.string.other_addresses, others.joinToString("  "))
-            listenersText.text = resources.getQuantityString(R.plurals.listener_count, s.listeners, s.listeners)
+            otherUrls.setTextIfChanged(getString(R.string.other_addresses, others.joinToString("  ")))
+            listenersText.setTextIfChanged(resources.getQuantityString(R.plurals.listener_count, s.listeners, s.listeners))
             val detail = findViewById<TextView>(R.id.listeners_detail)
             detail.visibility = if (s.listenerInfo.isEmpty()) View.GONE else View.VISIBLE
-            detail.text = s.listenerInfo.joinToString("\n") { describeListener(it) }
+            detail.setTextIfChanged(s.listenerInfo.joinToString("\n") { describeListener(it) })
             levelMeter.setLevel(s.level.meter)
             val now = Protocol.hostNowMs()
-            levelHint.setText(
+            levelHint.setTextIfChanged(
                 if (now - s.lastSoundMs < 3000) R.string.capturing_ok else R.string.capturing_silent
             )
         }
@@ -205,5 +229,10 @@ class MainActivity : ProjectionActivity() {
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
+    }
+
+    companion object {
+        const val EXTRA_PLAY_LOCALLY = "play_locally"
+        const val EXTRA_STOP = "stop_party"
     }
 }

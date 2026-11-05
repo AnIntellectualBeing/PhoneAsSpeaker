@@ -16,9 +16,12 @@ class ChunkTimestamper(
     private val sampleRate: Int,
     private val reanchorThresholdMs: Double = 40.0,
     private val slewFactor: Double = 0.02,
+    /** A jump must persist this many chunks before we believe it (single spikes are ignored). */
+    private val persistChunks: Int = 3,
 ) {
     private var anchorMs = Double.NaN
     private var anchorFrame = 0L
+    private var overCount = 0
 
     /** Number of hard re-anchors so far (useful for diagnostics). */
     var discontinuities = 0
@@ -38,11 +41,15 @@ class ChunkTimestamper(
         val predicted = anchorMs + (frameIndex - anchorFrame) * 1000.0 / sampleRate
         val error = measuredMs - predicted
         if (abs(error) > reanchorThresholdMs) {
+            overCount++
+            if (overCount < persistChunks) return predicted // probably a measurement spike
+            overCount = 0
             discontinuities++
             anchorMs = measuredMs
             anchorFrame = frameIndex
             return measuredMs
         }
+        overCount = 0
         val correction = error * slewFactor
         anchorMs += correction
         return predicted + correction
@@ -50,6 +57,7 @@ class ChunkTimestamper(
 
     fun reset() {
         anchorMs = Double.NaN
+        overCount = 0
         discontinuities = 0
     }
 }

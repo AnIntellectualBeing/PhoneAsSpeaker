@@ -28,6 +28,8 @@ class CaptureTestActivity : ProjectionActivity() {
     private val handler = Handler(Looper.getMainLooper())
     private var soundAtNonZeroVolume = false
     private var zeroVolumeSince = 0.0
+    private var lastTesting: Boolean? = null
+    private var lastDbTextMs = 0.0
     private val observer: (PartyState.Snapshot) -> Unit = { render(it) }
 
     private val volumePoll = object : Runnable {
@@ -81,22 +83,28 @@ class CaptureTestActivity : ProjectionActivity() {
 
     private fun render(s: PartyState.Snapshot) {
         val testing = s.mode == PartyState.Mode.CAPTURE_TEST
-        testButton.setText(if (testing) R.string.stop_test else R.string.start_test)
-        testButton.setBackgroundResource(if (testing) R.drawable.button_stop else R.drawable.button_primary)
+        testButton.setTextIfChanged(if (testing) R.string.stop_test else R.string.start_test)
+        if (testing != lastTesting) {
+            lastTesting = testing
+            testButton.setBackgroundResource(if (testing) R.drawable.button_stop else R.drawable.button_primary)
+        }
         errorText.visibility = if (s.error != null) View.VISIBLE else View.GONE
-        errorText.text = s.error ?: ""
+        errorText.setTextIfChanged(s.error ?: "")
 
         if (!testing) {
             meter.setLevel(0f)
-            dbText.text = "– dBFS"
-            verdict.setText(if (s.mode == PartyState.Mode.PARTY) R.string.status_running else R.string.test_not_running)
+            dbText.setTextIfChanged("– dBFS")
+            verdict.setTextIfChanged(if (s.mode == PartyState.Mode.PARTY) R.string.status_running else R.string.test_not_running)
             return
         }
         meter.setLevel(s.level.meter)
-        dbText.text = String.format(Locale.ROOT, "%.0f dBFS", s.level.db)
         val now = Protocol.hostNowMs()
+        if (now - lastDbTextMs > 250) { // a readable number, not a blur of 20 updates per second
+            lastDbTextMs = now
+            dbText.setTextIfChanged(String.format(Locale.ROOT, "%.0f dBFS", s.level.db))
+        }
         val soundNow = now - s.lastSoundMs < 1500
-        verdict.setText(
+        verdict.setTextIfChanged(
             when {
                 soundNow -> R.string.test_sound
                 now - s.captureStartedMs > 4000 -> R.string.test_silent
@@ -111,7 +119,7 @@ class CaptureTestActivity : ProjectionActivity() {
             if (zeroVolumeSince == 0.0) zeroVolumeSince = now
             if (soundAtNonZeroVolume && now - zeroVolumeSince > 1500) {
                 volumeResult.visibility = View.VISIBLE
-                volumeResult.setText(if (soundNow) R.string.volume_independent else R.string.volume_dependent)
+                volumeResult.setTextIfChanged(if (soundNow) R.string.volume_independent else R.string.volume_dependent)
             }
         } else {
             zeroVolumeSince = 0.0
@@ -121,7 +129,7 @@ class CaptureTestActivity : ProjectionActivity() {
     private fun updateVolume() {
         val vol = audio.getStreamVolume(AudioManager.STREAM_MUSIC)
         val max = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-        volumeText.text = getString(R.string.media_volume, vol, max)
+        volumeText.setTextIfChanged(getString(R.string.media_volume, vol, max))
         render(PartyState.snapshot)
     }
 }

@@ -139,6 +139,13 @@ test('ChunkTimestamper (JS twin of the Kotlin one) is continuous under jitter', 
     prev = t;
   }
   assert.equal(ts.discontinuities, 0);
+  // One spike is ignored; a persistent jump re-anchors after 3 chunks.
+  const spike = ts.timestampFor(500 * 960, 1000 + 500 * 20 + 90);
+  assert.ok(Math.abs(spike - (prev + 20)) < 0.5);
+  let t;
+  for (let k = 501; k <= 503; k++) t = ts.timestampFor(k * 960, 1000 + k * 20 + 300);
+  assert.equal(t, 1000 + 503 * 20 + 300);
+  assert.equal(ts.discontinuities, 1);
 });
 
 test('WAV reader + generators', () => {

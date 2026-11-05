@@ -116,12 +116,13 @@ class CaptureEngine(
                 val frameIndex = framesRead
                 framesRead += CHUNK_FRAMES
 
-                // When was the first frame of this chunk captured?
+                // When was the first frame of this chunk captured? Arrival time is always available
+                // (slightly late and jittery); the hardware timestamp is more precise but some
+                // devices/emulators report drifting or jumping values, so use it only while it agrees.
                 var measured = now - CHUNK_MS
                 if (record.getTimestamp(at, AudioTimestamp.TIMEBASE_MONOTONIC) == AudioRecord.SUCCESS) {
                     val fromTs = at.nanoTime / 1_000_000.0 + (frameIndex - at.framePosition) * 1000.0 / SAMPLE_RATE
-                    // Sanity check: must lie within the last two seconds.
-                    if (fromTs <= now && abs(now - fromTs) < 2000) {
+                    if (fromTs <= now && abs(fromTs - measured) < 30) {
                         measured = fromTs
                         usedHwTimestamp = true
                     }
